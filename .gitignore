@@ -1,0 +1,138 @@
+# ==============================
+# Python / FastAPI
+# ==============================
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+backend/.venv/
+backend/venv/
+
+# Python cache / compiled files
+__pycache__/
+*.py[cod]
+
+*.pyo
+*.pyd
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Type checking / linting caches
+.mypy_cache/
+.pyre/
+.ruff_cache/
+
+# ==============================
+# Node / React / Vite
+# ==============================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Vite / frontend build output
+frontend/dist/
+frontend/.vite/
+dist/
+
+# Coverage
+frontend/coverage/
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================
+# Environment / Secrets
+# ==============================
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local configuration / secrets
+*.secret
+*.secrets
+
+# ==============================
+# IDE / Editors
+# ==============================
+
+.vscode/
+.idea/
+*.iml
+
+# Visual Studio
+.vs/
+
+# ==============================
+# Operating System
+# ==============================
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# ==============================
+# Logs / Temporary Files
+# ==============================
+
+*.log
+*.tmp
+*.temp
+
+# ==============================
+# Local Project Files
+# ==============================
+
+# Local databases / generated data
+*.sqlite
+*.sqlite3
+*.db
+
+# Local test/output directories
+tmp/
+temp/
+output/
+reports/
+
+# ==============================
+# Python tooling
+# ==============================
+
+.pyright/
+.pytype/
+
+# ==============================
+# Jupyter
+# ==============================
+
+.ipynb_checkpoints/

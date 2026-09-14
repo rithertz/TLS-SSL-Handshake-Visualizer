@@ -1431,13 +1431,13 @@ If adopted, the top-level schema becomes:
 
   Data                         Primary Owner   Consumer
   ---------------------------- --------------- --------------------------
-  URL validation               Rithwik         Sujay
-  Target                       Rithwik         Sujay
-  Resolved IPs                 Rithwik         Sujay
-  TLS version                  Rithwik         Jayanth, Sujay, Shantanu
-  Cipher                       Rithwik         Sujay, Shantanu, Jayanth
-  Certificate                  Rithwik         Shantanu, Sujay
-  Security rules               Shantanu        Rithwik, Sujay
+  URL validation               rithertz         Sujay
+  Target                       rithertz         Sujay
+  Resolved IPs                 rithertz         Sujay
+  TLS version                  rithertz         Jayanth, Sujay, Shantanu
+  Cipher                       rithertz         Sujay, Shantanu, Jayanth
+  Certificate                  rithertz         Shantanu, Sujay
+  Security rules               Shantanu        rithertz, Sujay
   Security score               Shantanu        Sujay
   Findings                     Shantanu        Sujay
   Recommendations              Shantanu        Sujay
@@ -1455,7 +1455,7 @@ This is extremely important.
 Source of truth:
 
 ``` text
-Rithwik's TLS analyzer
+rithertz's TLS analyzer
 ```
 
 ## Certificate data
@@ -1463,7 +1463,7 @@ Rithwik's TLS analyzer
 Source of truth:
 
 ``` text
-Rithwik's certificate parser
+rithertz's certificate parser
 ```
 
 ## Security score
@@ -1544,7 +1544,7 @@ depend on React
 
 # 53. TLS Analyzer Rules
 
-Rithwik's analyzer:
+rithertz's analyzer:
 
 ``` text
 RECEIVES validated target
@@ -1787,7 +1787,7 @@ class AnalysisResponse(BaseModel):
     error: ErrorInfo | None
 ```
 
-Exact implementation belongs to Rithwik.
+Exact implementation belongs to rithertz.
 
 ------------------------------------------------------------------------
 
@@ -2136,7 +2136,7 @@ Before creating the project structure:
 
 All five members should read this document before implementation.
 
-### Rithwik
+### rithertz
 
 Confirm:
 

@@ -842,41 +842,8 @@ Packet capture
 
 ---
 
-# 35. Resume Value
 
-The stack exposes the team to:
-
-```text
-React
-TypeScript
-FastAPI
-Python networking
-Sockets
-TLS
-X.509
-PKI
-REST APIs
-Rule-based security analysis
-Git/GitHub
-Testing
-System integration
-```
-
-For Rithwik, the strongest contribution can combine:
-
-```text
-Network/TLS analysis
-+
-Backend architecture/API
-+
-Git/GitHub engineering
-```
-
-rather than only repository administration.
-
----
-
-# 36. Final Technology Rule
+# 35. Final Technology Rule
 
 Do not add a framework or dependency just because an AI agent suggests it.
 

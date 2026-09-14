@@ -1404,7 +1404,7 @@ Do not blindly paste AI output.
 
 The repository will be owned/administered by:
 
-**Rithwik Subramanian**
+**rithertz**
 
 Repository responsibilities include:
 
@@ -1419,8 +1419,8 @@ Repository responsibilities include:
 
 However:
 
-> Repository ownership is only one part of Rithwik's contribution.
-> Rithwik must also have a substantial technical module.
+> Repository ownership is only one part of rithertz's contribution.
+> rithertz must also have a substantial technical module.
 
 The exact technical module allocation will be finalized in the next
 planning step.
