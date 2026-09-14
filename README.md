@@ -35,7 +35,7 @@ The application allows a user to enter an HTTPS website, establishes a real TLS 
 - [23. Documentation](#23-documentation)
 - [24. Limitations](#24-limitations)
 - [25. Academic Concepts Demonstrated](#25-academic-concepts-demonstrated)
-- [26. Project Status](#26-project-status)
+- [26. Current Project Status](#26-current-project-status)
 - [27. Contributors](#27-contributors)
 - [28. License](#28-license)
 
@@ -735,8 +735,8 @@ analysis_status
     }
   },
   "certificate": {
-    "subject": {},
-    "issuer": {},
+    "subject": "CN=example.com",
+    "issuer": "Example CA",
     "valid_from": "...",
     "valid_until": "...",
     "san": [],
@@ -1012,7 +1012,7 @@ That would be a separate capability from the current high-level TLS API approach
 
 # 17. Getting Started
 
-> Detailed setup instructions should be kept up to date as the implementation evolves. The commands below describe the intended development setup.
+This section is the standard local-development setup for Windows PowerShell.
 
 ## Prerequisites
 
@@ -1023,7 +1023,7 @@ Install:
 - Node.js and npm
 - A modern web browser
 
-Verify installations:
+Verify:
 
 ```powershell
 git --version
@@ -1045,61 +1045,261 @@ cd TLS-SSL-Handshake-Visualizer
 
 ## Backend Setup
 
-Create a virtual environment:
+Open a PowerShell terminal at the repository root.
+
+### 1. Enter the backend
 
 ```powershell
 cd backend
+```
+
+### 2. Create the Python virtual environment
+
+```powershell
 python -m venv .venv
 ```
 
-Activate it on Windows PowerShell:
+### 3. Activate it
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 ```
 
-Install backend dependencies once the project requirements file is available:
+If PowerShell blocks script execution, use the appropriate local execution-policy setting for your environment rather than committing environment-specific workarounds to the repository.
+
+### 4. Install dependencies
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-Start the FastAPI development server:
+### 5. Start the backend
 
 ```powershell
 uvicorn app.main:app --reload
 ```
 
-The backend should expose:
+The backend runs at:
 
 ```text
-GET /health
-POST /analyze
+http://127.0.0.1:8000
+```
+
+Keep this terminal running.
+
+### 6. Verify the backend
+
+In a second PowerShell terminal:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+Expected response:
+
+```text
+status
+------
+ok
+```
+
+The interactive FastAPI documentation is also available at:
+
+```text
+http://127.0.0.1:8000/docs
 ```
 
 ---
 
 ## Frontend Setup
 
-In another terminal:
+Open another PowerShell terminal at the repository root.
+
+### 1. Enter the frontend
+
+```powershell
+cd frontend
+```
+
+### 2. Install Node dependencies
+
+```powershell
+npm install
+```
+
+For a clean dependency installation in CI, use:
+
+```powershell
+npm ci
+```
+
+### 3. Start the Vite development server
+
+```powershell
+npm run dev
+```
+
+Vite will display the local URL, normally:
+
+```text
+http://localhost:5173/
+```
+
+Open that address in your browser.
+
+---
+
+## Running the Full Local Application
+
+Two terminals are normally required.
+
+### Terminal 1 - Backend
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+```
+
+### Terminal 2 - Frontend
+
+```powershell
+cd frontend
+npm run dev
+```
+
+Then open the Vite URL in a browser.
+
+The frontend sends analysis requests to:
+
+```text
+http://127.0.0.1:8000/analyze
+```
+
+---
+
+## Backend Tests
+
+From the `backend` directory with the virtual environment activated:
+
+```powershell
+pytest
+```
+
+---
+
+## Frontend Production Build
+
+From the `frontend` directory:
+
+```powershell
+npm run build
+```
+
+This runs the TypeScript build and Vite production build.
+
+---
+
+## Useful Development Commands
+
+### Backend
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+pytest
+```
+
+### Frontend
 
 ```powershell
 cd frontend
 npm install
 npm run dev
+npm run build
 ```
 
-Vite will display the local development URL in the terminal.
+### Repository Status
+
+From the repository root:
+
+```powershell
+git status
+```
+
+### Pull Latest Changes
+
+```powershell
+git checkout main
+git pull origin main
+```
 
 ---
 
+## Troubleshooting
+
+### `npm run build` says `package.json` cannot be found
+
+Make sure the terminal is inside:
+
+```text
+TLS-SSL-Handshake-Visualizerrontend
+```
+
+Then run:
+
+```powershell
+npm run build
+```
+
+### Backend import errors
+
+Make sure the terminal is inside:
+
+```text
+TLS-SSL-Handshake-Visualizerackend
+```
+
+and the virtual environment is activated:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+Then install dependencies:
+
+```powershell
+pip install -r requirements.txt
+```
+
+### Frontend cannot reach the backend
+
+Check that the FastAPI server is running:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+```
+
+If the health endpoint fails, start the backend before testing the frontend.
+
+### Do not commit local environments
+
+The following should remain local and ignored by Git:
+
+```text
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+```
+
 # 18. Development Workflow
 
-All team members should follow a common workflow.
+The repository is intended for parallel team development.
 
 ## Before Starting Work
 
-Update the local `main` branch:
+Update your local `main` branch:
 
 ```powershell
 git checkout main
@@ -1120,63 +1320,92 @@ git checkout -b feature/tls-analysis
 
 ---
 
-## During Development
+## Work Within Your Assigned Area
 
-Make small, meaningful commits.
+Each member should primarily modify the files belonging to their component.
 
-Example:
+Do not rewrite another member's component without coordination.
 
-```text
-feat: add TLS connection analyzer
-test: add certificate parser tests
-fix: handle TLS connection timeout
-docs: update API usage
-```
-
-Avoid large commits containing unrelated changes.
+The API contract is the shared boundary between backend and frontend.
 
 ---
 
-## Before Sharing Work
+## Before Opening a Pull Request
 
-Check:
+Check your working tree:
 
 ```powershell
 git status
 ```
 
-Run relevant tests.
-
-Review the diff:
+Review changes:
 
 ```powershell
 git diff
 ```
 
-Then commit:
+Run the relevant tests/builds.
+
+Backend:
 
 ```powershell
-git add .
+cd backend
+.\.venv\Scripts\Activate.ps1
+pytest
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm run build
+```
+
+Return to the repository root before Git operations if needed:
+
+```powershell
+cd ..
+```
+
+---
+
+## Commit
+
+Use a focused commit:
+
+```powershell
+git add <files>
 git commit -m "feat: add TLS connection analyzer"
 ```
 
-Push the branch:
+Avoid mixing unrelated features, formatting changes, or generated files into the same commit.
+
+---
+
+## Push and Pull Request
 
 ```powershell
 git push -u origin feature/<short-description>
 ```
 
-Open a Pull Request on GitHub.
+Then open a Pull Request on GitHub.
 
----
+Once CI and review requirements are enabled, merge only after the required checks pass.
 
 # 19. Git and Branching Guidelines
 
 ## `main`
 
-`main` represents the stable shared project state.
+`main` represents the shared stable project state.
 
-Do not directly push experimental work to `main` once active team development begins.
+During active team development:
+
+- Do not push experimental work directly to `main`.
+- Use feature branches.
+- Open Pull Requests for integration.
+- Keep `main` buildable.
+
+GitHub branch protection/required CI checks should be enabled once the CI workflow is committed and verified.
 
 ---
 
@@ -1218,10 +1447,28 @@ feat: add certificate metadata parser
 test: add certificate hostname tests
 fix: handle invalid HTTPS URLs
 docs: update backend setup instructions
-chore: configure development gitignore
+chore: configure CI workflow
 ```
 
 ---
+
+## What Should Not Be Committed
+
+Do not commit:
+
+```text
+backend/.venv/
+frontend/node_modules/
+frontend/dist/
+.env
+credentials
+API keys
+private keys
+machine-specific files
+IDE settings
+```
+
+The repository `.gitignore` handles common generated/local files.
 
 # 20. Testing Strategy
 
@@ -1644,50 +1891,63 @@ This project directly connects to several Computer Networks topics.
 
 ---
 
-# 26. Project Status
+# 26. Current Project Status
 
-The repository is currently in the **initial project setup phase**.
+The shared implementation baseline is established and has been verified locally.
 
-The repository foundation includes:
+### Repository
 
-- Git repository
-- GitHub remote
-- Team collaborator access
-- Project documentation
-- API contract
-- System architecture
-- Development standards
-- Initial source-tree placeholders
+- Git repository initialized
+- GitHub remote configured
+- Team collaborators added
+- Shared project structure committed
+- Shared architecture/API documentation committed
+- `.gitignore` configured
 
-The next development stage is implementation of the MVP.
+### Backend
 
-Target pipeline:
+- FastAPI application created
+- `GET /health` implemented
+- `POST /analyze` implemented
+- HTTPS URL validation implemented
+- DNS resolution implemented
+- TCP connection to port 443 implemented
+- TLS negotiation implemented
+- TLS version extraction implemented
+- Cipher information extraction implemented
+- Peer certificate retrieval implemented
+- X.509 certificate parsing implemented
+- Certificate hostname matching implemented
+- Certificate validity information implemented
+- Basic deterministic security scoring implemented
+- Structured analysis/error response implemented
+- Backend dependencies captured in `backend/requirements.txt`
 
-```text
-[URL Input]
-      ↓
-[FastAPI]
-      ↓
-[DNS Resolution]
-      ↓
-[TCP :443]
-      ↓
-[TLS Negotiation]
-      ↓
-[Certificate Parsing]
-      ↓
-[Security Scoring]
-      ↓
-[Unified API Response]
-      ↓
-┌──────────────────────┐
-│ React Dashboard      │
-│ + Handshake          │
-│   Visualizer         │
-└──────────────────────┘
-```
+### Frontend
 
----
+- React + TypeScript + Vite application established
+- Shared API types implemented
+- API client implemented
+- URL analysis form implemented
+- Initial application-to-API wiring implemented
+- TypeScript/Vite production build verified successfully
+
+### Still In Development
+
+The following remain active implementation areas:
+
+- Full dashboard/result presentation
+- Interactive TLS handshake visualizer
+- Final security scoring methodology/rules
+- Comprehensive backend tests
+- Frontend tests
+- Integration and end-to-end tests
+- CI workflow
+- Protected `main` branch
+- Demo documentation
+- Scoring methodology documentation
+
+The project should be considered an **active MVP implementation**, not a finished product.
 
 # 27. Contributors
 

@@ -8,7 +8,7 @@
 
 ## 1. Architecture Decision
 
-The project will be a **client-server web application** with four logical layers:
+The project is a **client-server web application** with four logical layers. The current repository contains the initial backend and frontend implementation needed to support the Review-1 MVP.
 
 ```text
 ┌──────────────────────────────────────────────────────────────┐
@@ -77,7 +77,8 @@ the application should follow:
 ```text
 User enters URL
       ↓
-React validates URL
+React collects URL
+      ↓
       ↓
 POST /analyze
       ↓
@@ -204,7 +205,7 @@ TLS negotiation
 Secure TLS session
 ```
 
-The backend should obtain:
+The current backend obtains:
 
 - negotiated TLS version;
 - negotiated cipher suite;
@@ -284,7 +285,7 @@ If packet capture is added later, it becomes an advanced extension.
 
 ## 10. Backend Logical Architecture
 
-Recommended structure:
+Current structure:
 
 ```text
 backend/
@@ -302,13 +303,13 @@ backend/
     │   └── parser.py
     ├── security/
     │   ├── scorer.py
-    │   ├── rules.py
-    │   └── recommendations.py
+    │   └── rules.py
     └── services/
-        └── analysis_service.py
+        ├── analysis_service.py
+        └── url_validator.py
 ```
 
-Names may change, but responsibilities should remain separated.
+Additional modules such as `security/recommendations.py` may be introduced as implementation expands. Names may change, but responsibilities should remain separated.
 
 ---
 
@@ -334,7 +335,7 @@ Response model
 JSON
 ```
 
-The API route should be thin. Avoid putting TLS and scoring logic inside the route.
+The current API route is intentionally thin. TLS and scoring logic are delegated to the analysis service and lower-level modules.
 
 ---
 
@@ -439,24 +440,14 @@ It must not open network connections.
 
 ## 16. Frontend Architecture
 
-Recommended structure:
+Current foundation:
 
 ```text
 frontend/
 └── src/
     ├── components/
-    │   ├── UrlInput.tsx
-    │   ├── LoadingState.tsx
-    │   ├── ErrorState.tsx
-    │   ├── CertificateCard.tsx
-    │   ├── TLSInfoCard.tsx
-    │   ├── SecurityScore.tsx
-    │   ├── FindingsList.tsx
-    │   └── Recommendations.tsx
+    │   └── AnalyzeForm.tsx
     ├── visualizer/
-    │   ├── HandshakeVisualizer.tsx
-    │   ├── HandshakeStep.tsx
-    │   └── handshakeData.ts
     ├── services/
     │   └── api.ts
     ├── types/
@@ -464,6 +455,8 @@ frontend/
     ├── App.tsx
     └── main.tsx
 ```
+
+The dashboard and visualizer components will be added by their respective owners.
 
 ---
 
