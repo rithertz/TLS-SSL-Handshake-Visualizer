@@ -1,0 +1,8 @@
+{
+  "error": "TLS Handshake Failed",
+  "message": "The certificate presented by the server has expired or is issued by an untrusted Certificate Authority.",
+  "code": "ERR_SSL_CERT_HAS_EXPIRED",
+  "target": "https://expired-rsa-dv.ssl.badssl.com",
+  "timestamp": "2026-09-15T23:43:15Z",
+  "details": "Connection aborted during Step 3 (Certificate Verification). The target host failed peer validation."
+}
