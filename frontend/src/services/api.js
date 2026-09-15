@@ -32,7 +32,7 @@ export async function analyzeUrl(url) {
       let errBody;
       try {
         errBody = await response.json();
-      } catch (e) {
+      } catch {
         errBody = { message: `Server responded with status code ${response.status}` };
       }
       return {

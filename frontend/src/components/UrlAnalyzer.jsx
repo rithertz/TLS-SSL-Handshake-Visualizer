@@ -36,7 +36,7 @@ export default function UrlAnalyzer({ onAnalyze, isLoading }) {
         return { isValid: false, error: 'Please enter a valid domain name (e.g., example.com).' };
       }
       return { isValid: true, url: formatted, error: '' };
-    } catch (e) {
+    } catch {
       return { isValid: false, error: 'Invalid URL format. Please enter a valid URL like https://example.com' };
     }
   };
