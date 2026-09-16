@@ -71,7 +71,6 @@ def test_analyze_endpoint_rejects_non_443_https_port():
 
     assert body["detail"] == "Only HTTPS port 443 is supported."
 
-
 def test_analyze_endpoint_rejects_missing_hostname():
     """Verify that HTTPS URLs without a valid hostname are rejected."""
     response = client.post(
@@ -84,3 +83,78 @@ def test_analyze_endpoint_rejects_missing_hostname():
     body = response.json()
 
     assert body["detail"] == "URL must contain a valid hostname."
+
+
+def test_analyze_endpoint_returns_success_response(monkeypatch):
+    """Verify that a successful analysis returns the expected top-level API structure."""
+
+    mock_result = {
+        "analysis_status": "SUCCESS",
+        "target": {
+            "url": "https://example.com",
+            "hostname": "example.com",
+            "port": 443,
+        },
+        "network": {
+            "resolved_ips": ["93.184.216.34"],
+        },
+        "tls": {
+            "version": "TLSv1.3",
+            "cipher": {
+                "name": "TLS_AES_256_GCM_SHA384",
+                "protocol": "TLSv1.3",
+                "bits": 256,
+            },
+        },
+        "certificate": {
+            "subject": "CN=example.com",
+            "issuer": "CN=Example CA",
+            "valid_from": "2026-01-01T00:00:00+00:00",
+            "valid_until": "2027-01-01T00:00:00+00:00",
+            "san": ["example.com"],
+            "serial_number": "123456789",
+            "hostname_match": True,
+            "self_signed": False,
+        },
+        "security": {
+            "score": 100,
+            "grade": "A",
+            "findings": [],
+            "recommendations": [],
+        },
+        "visualization": None,
+        "error": None,
+    }
+
+    monkeypatch.setattr(
+        "app.api.routes.analyze.analyze_url",
+        lambda url: mock_result,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://example.com"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["analysis_status"] == "SUCCESS"
+    assert body["target"]["hostname"] == "example.com"
+    assert body["target"]["port"] == 443
+    assert body["network"]["resolved_ips"] == ["93.184.216.34"]
+
+    assert body["tls"]["version"] == "TLSv1.3"
+    assert body["tls"]["cipher"]["name"] == "TLS_AES_256_GCM_SHA384"
+
+    assert isinstance(body["certificate"], dict)
+    assert isinstance(body["certificate"]["subject"], str)
+    assert isinstance(body["certificate"]["issuer"], str)
+    assert isinstance(body["certificate"]["san"], list)
+
+    assert 0 <= body["security"]["score"] <= 100
+    assert body["security"]["grade"] in ["A", "B", "C", "D", "E", "F"]
+
+    assert body["visualization"] is None
+    assert body["error"] is None
