@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
@@ -29,10 +30,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Validate backend imports
+      - name: Run backend tests
         working-directory: backend
         run: |
-          python -c "from app.main import app; print('Backend import validation passed')"
+          python -m pytest
 
   frontend:
     name: Frontend Validation
