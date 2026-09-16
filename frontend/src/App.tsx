@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import AnalyzeForm from "./components/AnalyzeForm";
+import HandshakeVisualizer from "./visualizer/HandshakeVisualizer";
 import { analyzeWebsite } from "./services/api";
 import type { AnalyzeResponse } from "./types/analysis";
 
@@ -64,6 +65,11 @@ function App() {
           <p>
             TLS Version: {analysis.tls?.version ?? "Unavailable"}
           </p>
+
+          <HandshakeVisualizer
+            visualization={analysis.visualization}
+            tlsVersion={analysis.tls?.version}
+          />
         </section>
       )}
     </main>
