@@ -158,3 +158,46 @@ def test_analyze_endpoint_returns_success_response(monkeypatch):
 
     assert body["visualization"] is None
     assert body["error"] is None
+
+def test_analyze_endpoint_returns_structured_failure_response(monkeypatch):
+    """Verify that a failed analysis returns the expected structured error response."""
+
+    mock_result = {
+        "analysis_status": "FAILED",
+        "target": None,
+        "network": None,
+        "tls": None,
+        "certificate": None,
+        "security": None,
+        "visualization": None,
+        "error": {
+            "code": "TLS_HANDSHAKE_FAILED",
+            "message": "Unable to complete the TLS handshake.",
+        },
+    }
+
+    monkeypatch.setattr(
+        "app.api.routes.analyze.analyze_url",
+        lambda url: mock_result,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://example.com"},
+    )
+
+    assert response.status_code == 200
+
+    body = response.json()
+
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"] is None
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+
+    assert isinstance(body["error"], dict)
+    assert body["error"]["code"] == "TLS_HANDSHAKE_FAILED"
+    assert body["error"]["message"] == "Unable to complete the TLS handshake."
