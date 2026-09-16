@@ -150,3 +150,33 @@ def test_analyze_url_handles_unexpected_analysis_error(monkeypatch):
 
     assert result["error"]["code"] == "ANALYSIS_ERROR"
     assert result["error"]["message"] == "Unexpected analysis failure"
+
+
+def test_analyze_url_handles_dns_resolution_error(monkeypatch):
+    """Verify that a DNS resolution failure returns a structured failure response."""
+    import socket
+
+    def raise_dns_error(hostname):
+        raise socket.gaierror(-2, "Name or service not known")
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_dns_error,
+    )
+
+    result = analyze_url("https://invalid.domain.example")
+
+    assert result["analysis_status"] == "FAILED"
+
+    assert result["target"]["url"] == "https://invalid.domain.example"
+    assert result["target"]["hostname"] == "invalid.domain.example"
+    assert result["target"]["port"] == 443
+
+    assert result["network"] is None
+    assert result["tls"] is None
+    assert result["certificate"] is None
+    assert result["security"] is None
+    assert result["visualization"] is None
+
+    assert result["error"]["code"] == "NETWORK_ERROR"
+    assert "Name or service not known" in result["error"]["message"]

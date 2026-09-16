@@ -1,3 +1,6 @@
+import socket
+import ssl
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -403,3 +406,170 @@ def test_analyze_endpoint_matches_api_contract(monkeypatch):
 
     # Successful analysis must have no error.
     assert body["error"] is None
+
+
+def test_analyze_endpoint_rejects_malformed_url():
+    """Verify that malformed URLs are rejected with HTTP 400."""
+    response = client.post(
+        "/analyze",
+        json={"url": "not_a_valid_url"},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert "detail" in body
+    assert body["detail"] == "Only HTTPS URLs are supported."
+
+
+def test_analyze_endpoint_handles_dns_failure(monkeypatch):
+    """Verify that a DNS resolution failure returns a structured FAILED analysis response."""
+
+    def raise_dns_error(hostname):
+        raise socket.gaierror(-2, "Name or service not known")
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_dns_error,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://invalid.domain.example"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"]["hostname"] == "invalid.domain.example"
+    assert body["target"]["port"] == 443
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+    assert body["error"]["code"] == "NETWORK_ERROR"
+    assert "Name or service not known" in body["error"]["message"]
+
+
+def test_analyze_endpoint_handles_unreachable_domain(monkeypatch):
+    """Verify that an unreachable host / connection refusal returns a structured FAILED analysis response."""
+
+    def raise_connection_refused(hostname):
+        raise ConnectionRefusedError("Connection refused")
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_connection_refused,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://unreachable.example.com"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"]["hostname"] == "unreachable.example.com"
+    assert body["target"]["port"] == 443
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+    assert body["error"]["code"] == "NETWORK_ERROR"
+    assert "Connection refused" in body["error"]["message"]
+
+
+def test_analyze_endpoint_handles_tls_handshake_failure(monkeypatch):
+    """Verify that a TLS handshake failure returns a structured FAILED analysis response."""
+
+    def raise_tls_error(hostname):
+        raise ssl.SSLError("TLS handshake failed")
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_tls_error,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://tls-failure.example.com"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"]["hostname"] == "tls-failure.example.com"
+    assert body["target"]["port"] == 443
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+    assert body["error"]["code"] == "NETWORK_ERROR"
+    assert "TLS handshake failed" in body["error"]["message"]
+
+
+def test_analyze_endpoint_handles_certificate_failure(monkeypatch):
+    """Verify that a certificate verification failure returns a structured FAILED analysis response."""
+
+    def raise_cert_error(hostname):
+        raise ssl.SSLCertVerificationError(
+            "certificate verify failed: certificate has expired"
+        )
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_cert_error,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://expired-cert.example.com"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"]["hostname"] == "expired-cert.example.com"
+    assert body["target"]["port"] == 443
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+    assert body["error"]["code"] == "NETWORK_ERROR"
+    assert "certificate verify failed" in body["error"]["message"]
+
+
+def test_analyze_endpoint_handles_timeout(monkeypatch):
+    """Verify that a connection timeout returns a structured FAILED analysis response with CONNECTION_TIMEOUT error."""
+
+    def raise_timeout(hostname):
+        raise TimeoutError()
+
+    monkeypatch.setattr(
+        "app.services.analysis_service.analyze_tls",
+        raise_timeout,
+    )
+
+    response = client.post(
+        "/analyze",
+        json={"url": "https://timeout.example.com"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["analysis_status"] == "FAILED"
+    assert body["target"]["hostname"] == "timeout.example.com"
+    assert body["target"]["port"] == 443
+    assert body["network"] is None
+    assert body["tls"] is None
+    assert body["certificate"] is None
+    assert body["security"] is None
+    assert body["visualization"] is None
+    assert body["error"]["code"] == "CONNECTION_TIMEOUT"
+    assert body["error"]["message"] == (
+        "The target server did not respond within the allowed time."
+    )
