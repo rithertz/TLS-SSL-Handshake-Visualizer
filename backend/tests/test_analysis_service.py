@@ -1,5 +1,5 @@
 from app.services.analysis_service import analyze_url
-
+from app.visualization.builder import EMPTY_VISUALIZATION
 
 def test_analyze_url_integrates_validation_tls_and_security(monkeypatch):
     """Verify that URL validation, TLS analysis, and security scoring are integrated."""
@@ -60,7 +60,9 @@ def test_analyze_url_integrates_validation_tls_and_security(monkeypatch):
 
     assert result["security"] == mock_security_data
 
-    assert result["visualization"] is None
+    assert result["visualization"]["protocol_version"] == "TLSv1.3"
+    assert len(result["visualization"]["steps"]) == 7
+
     assert result["error"] is None
 
 
@@ -87,7 +89,7 @@ def test_analyze_url_handles_connection_timeout(monkeypatch):
     assert result["tls"] is None
     assert result["certificate"] is None
     assert result["security"] is None
-    assert result["visualization"] is None
+    assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "CONNECTION_TIMEOUT"
     assert result["error"]["message"] == (
@@ -118,10 +120,11 @@ def test_analyze_url_handles_network_error(monkeypatch):
     assert result["tls"] is None
     assert result["certificate"] is None
     assert result["security"] is None
-    assert result["visualization"] is None
+    assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "NETWORK_ERROR"
     assert result["error"]["message"] == "Connection refused"
+
 
 def test_analyze_url_handles_unexpected_analysis_error(monkeypatch):
     """Verify that an unexpected analysis error returns a structured failure response."""
@@ -146,7 +149,7 @@ def test_analyze_url_handles_unexpected_analysis_error(monkeypatch):
     assert result["tls"] is None
     assert result["certificate"] is None
     assert result["security"] is None
-    assert result["visualization"] is None
+    assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "ANALYSIS_ERROR"
     assert result["error"]["message"] == "Unexpected analysis failure"
@@ -176,7 +179,7 @@ def test_analyze_url_handles_dns_resolution_error(monkeypatch):
     assert result["tls"] is None
     assert result["certificate"] is None
     assert result["security"] is None
-    assert result["visualization"] is None
+    assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "NETWORK_ERROR"
     assert "Name or service not known" in result["error"]["message"]
