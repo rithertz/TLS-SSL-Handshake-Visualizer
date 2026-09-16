@@ -220,10 +220,8 @@ def test_analyze_endpoint_handles_unexpected_analysis_error(monkeypatch):
         "/analyze",
         json={"url": "https://example.com"},
     )
-    # NOTE: Current implementation returns 502.
-    # API_CONTRACT.md specifies 500 for unexpected server-level failures.
-    # This should be aligned to 500 after the backend changes are merged.
-    assert response.status_code == 502
+
+    assert response.status_code == 500
 
     body = response.json()
 
