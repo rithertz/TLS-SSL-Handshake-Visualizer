@@ -26,7 +26,7 @@ declare module "vitest" {
 }
 
 declare module "@testing-library/react" {
-  export function render(ui: React.ReactElement): void;
+  export function render(ui: import("react").ReactElement): void;
   export const screen: {
     getByLabelText: (matcher: string | RegExp) => HTMLElement;
     getByTestId: (id: string) => HTMLElement;
