@@ -100,3 +100,7 @@ export interface AnalyzeResponse {
   visualization: VisualizationInfo | null;
   error: ErrorInfo | null;
 }
+
+export type AnalysisResponse = AnalyzeResponse;
+
+export type AnalysisState = "idle" | "loading" | "success" | "error";
