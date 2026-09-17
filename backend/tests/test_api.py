@@ -4,6 +4,7 @@ import ssl
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.visualization.builder import EMPTY_VISUALIZATION
 
 
 # Create a test client for sending requests directly to the FastAPI application.
@@ -74,6 +75,7 @@ def test_analyze_endpoint_rejects_non_443_https_port():
 
     assert body["detail"] == "Only HTTPS port 443 is supported."
 
+
 def test_analyze_endpoint_rejects_missing_hostname():
     """Verify that HTTPS URLs without a valid hostname are rejected."""
     response = client.post(
@@ -125,7 +127,10 @@ def test_analyze_endpoint_returns_success_response(monkeypatch):
             "findings": [],
             "recommendations": [],
         },
-        "visualization": None,
+        "visualization": {
+            "protocol_version": "TLSv1.3",
+            "steps": [],
+        },
         "error": None,
     }
 
@@ -159,8 +164,12 @@ def test_analyze_endpoint_returns_success_response(monkeypatch):
     assert 0 <= body["security"]["score"] <= 100
     assert body["security"]["grade"] in ["A", "B", "C", "D", "E", "F"]
 
-    assert body["visualization"] is None
+    assert isinstance(body["visualization"], dict)
+    assert body["visualization"]["protocol_version"] == "TLSv1.3"
+    assert isinstance(body["visualization"]["steps"], list)
+
     assert body["error"] is None
+
 
 def test_analyze_endpoint_returns_structured_failure_response(monkeypatch):
     """Verify that a failed analysis returns the expected structured error response."""
@@ -172,7 +181,7 @@ def test_analyze_endpoint_returns_structured_failure_response(monkeypatch):
         "tls": None,
         "certificate": None,
         "security": None,
-        "visualization": None,
+        "visualization": EMPTY_VISUALIZATION,
         "error": {
             "code": "TLS_HANDSHAKE_FAILED",
             "message": "Unable to complete the TLS handshake.",
@@ -199,11 +208,12 @@ def test_analyze_endpoint_returns_structured_failure_response(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
 
     assert isinstance(body["error"], dict)
     assert body["error"]["code"] == "TLS_HANDSHAKE_FAILED"
     assert body["error"]["message"] == "Unable to complete the TLS handshake."
+
 
 def test_analyze_endpoint_handles_unexpected_analysis_error(monkeypatch):
     """Verify that an unexpected analysis exception is returned as an HTTP error."""
@@ -229,6 +239,7 @@ def test_analyze_endpoint_handles_unexpected_analysis_error(monkeypatch):
     assert body["detail"] == (
         "Unable to analyze the target: Unexpected analysis failure"
     )
+
 
 def test_analyze_endpoint_matches_api_contract(monkeypatch):
     """Verify that a successful response matches the API contract structure and types."""
@@ -281,7 +292,10 @@ def test_analyze_endpoint_matches_api_contract(monkeypatch):
                 }
             ],
         },
-        "visualization": None,
+        "visualization": {
+            "protocol_version": "TLSv1.3",
+            "steps": [],
+        },
         "error": None,
     }
 
@@ -402,6 +416,11 @@ def test_analyze_endpoint_matches_api_contract(monkeypatch):
         assert isinstance(recommendation["rule_id"], str)
         assert isinstance(recommendation["text"], str)
 
+    # Verify visualization structure.
+    assert isinstance(body["visualization"], dict)
+    assert body["visualization"]["protocol_version"] == "TLSv1.3"
+    assert isinstance(body["visualization"]["steps"], list)
+
     # Successful analysis must have no error.
     assert body["error"] is None
 
@@ -444,7 +463,7 @@ def test_analyze_endpoint_handles_dns_failure(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
     assert "Name or service not known" in body["error"]["message"]
 
@@ -474,7 +493,7 @@ def test_analyze_endpoint_handles_unreachable_domain(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
     assert "Connection refused" in body["error"]["message"]
 
@@ -504,7 +523,7 @@ def test_analyze_endpoint_handles_tls_handshake_failure(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
     assert "TLS handshake failed" in body["error"]["message"]
 
@@ -536,7 +555,7 @@ def test_analyze_endpoint_handles_certificate_failure(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
     assert "certificate verify failed" in body["error"]["message"]
 
@@ -566,7 +585,7 @@ def test_analyze_endpoint_handles_timeout(monkeypatch):
     assert body["tls"] is None
     assert body["certificate"] is None
     assert body["security"] is None
-    assert body["visualization"] is None
+    assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "CONNECTION_TIMEOUT"
     assert body["error"]["message"] == (
         "The target server did not respond within the allowed time."

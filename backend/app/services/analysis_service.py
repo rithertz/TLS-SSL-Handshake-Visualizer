@@ -1,6 +1,7 @@
 from app.security.scorer import score_security
 from app.services.url_validator import validate_url
 from app.tls.analyzer import analyze_tls
+from app.visualization.builder import EMPTY_VISUALIZATION, build_visualization
 
 
 def analyze_url(url: str) -> dict:
@@ -30,7 +31,12 @@ def analyze_url(url: str) -> dict:
             },
             "certificate": tls_data["certificate"],
             "security": security_data,
-            "visualization": None,
+            "visualization": build_visualization(
+                tls_data["tls_version"],
+                tls_data["cipher"],
+                tls_data["certificate"],
+                hostname,
+            ),
             "error": None,
         }
 
@@ -46,7 +52,7 @@ def analyze_url(url: str) -> dict:
             "tls": None,
             "certificate": None,
             "security": None,
-            "visualization": None,
+            "visualization": EMPTY_VISUALIZATION,
             "error": {
                 "code": "CONNECTION_TIMEOUT",
                 "message": "The target server did not respond within the allowed time.",
@@ -65,7 +71,7 @@ def analyze_url(url: str) -> dict:
             "tls": None,
             "certificate": None,
             "security": None,
-            "visualization": None,
+            "visualization": EMPTY_VISUALIZATION,
             "error": {
                 "code": "NETWORK_ERROR",
                 "message": str(error),
@@ -84,7 +90,7 @@ def analyze_url(url: str) -> dict:
             "tls": None,
             "certificate": None,
             "security": None,
-            "visualization": None,
+            "visualization": EMPTY_VISUALIZATION,
             "error": {
                 "code": "ANALYSIS_ERROR",
                 "message": str(error),
