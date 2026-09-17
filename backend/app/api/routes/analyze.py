@@ -19,8 +19,8 @@ def analyze(request: AnalyzeRequest):
             detail=str(error),
         )
 
-    except Exception as error:
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail=f"Unable to analyze the target: {error}",
+            detail="Unable to analyze the target.",
         )

@@ -231,9 +231,9 @@ Show:
 - validity dates
 - SAN entries
 - hostname match
-- self-signed status
+- apparent self-signed status
 
-Explain that the certificate binds the server identity to the domain through PKI.
+Explain that the analyzer reports certificate metadata, hostname matching, validity dates, and whether the certificate appears self-signed from subject/issuer metadata. It does not prove the full browser trust chain or revocation status.
 
 ### Step 7 — Explain Security Scoring
 
@@ -244,7 +244,9 @@ For the current baseline, rules include:
 - TLS version
 - certificate validity
 - hostname matching
+- expiry proximity
 - self-signed status
+- certificate identity metadata
 
 ### Step 8 — Show the Handshake
 
@@ -351,6 +353,8 @@ http://127.0.0.1:8000
 ```
 
 as its API base URL.
+
+Local development defaults to this value when `frontend/.env` is absent. A production frontend must define `VITE_API_BASE_URL` explicitly.
 
 ---
 

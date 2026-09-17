@@ -388,12 +388,12 @@ null
 Meaning:
 
 ```text
-true  = identified as self-signed
-false = identified as not self-signed
+true  = subject and issuer metadata match, so it appears self-signed
+false = subject and issuer metadata differ, so it does not appear self-signed
 null  = unable to determine
 ```
 
-The frontend should display this value but should not duplicate the security-scoring logic.
+This is not full certificate-chain, revocation, or browser-trust validation. The frontend should display this value but should not duplicate the security-scoring logic.
 
 ---
 
@@ -480,7 +480,7 @@ E
 F
 ```
 
-The exact scoring weights belong to the security-scoring implementation and its separate methodology document.
+The exact scoring weights belong to `docs/scoring/SECURITY_SCORING.md`.
 
 The frontend must not reimplement the grade calculation.
 
@@ -571,24 +571,17 @@ Do not expose:
 
 # 27. Error Codes
 
-Initial codes:
+Backend-emitted analysis failure codes in the current implementation:
 
 ```text
-INVALID_REQUEST
-INVALID_URL
-UNSUPPORTED_SCHEME
-DNS_RESOLUTION_FAILED
-CONNECTION_FAILED
 CONNECTION_TIMEOUT
-TLS_HANDSHAKE_FAILED
-CERTIFICATE_ERROR
-ANALYSIS_FAILED
 ANALYSIS_ERROR
-INTERNAL_ERROR
 NETWORK_ERROR
 ```
 
-New frontend-dependent error codes should be documented before use.
+Route-level invalid input is returned as HTTP 400 with a `detail` string rather than an `ErrorInfo` envelope.
+
+The frontend may also surface local transport or compatibility codes such as `CONNECTION_FAILED`, `SERVER_ERROR`, `INVALID_URL`, or legacy fixture codes in tests. New backend-emitted error codes should be documented before use.
 
 ---
 

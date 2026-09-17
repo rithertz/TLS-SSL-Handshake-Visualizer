@@ -1,476 +1,342 @@
-# Technology Stack & Development Standard
+# Technology Stack And Development Standard
 
-## 1. Purpose
+## Purpose
 
-This document defines the technology stack, development standards, runtime boundaries, and engineering conventions for the **TLS/SSL Handshake Visualizer & Website Security Analyzer**.
+This document defines the technology choices, development standards, ownership boundaries, and engineering conventions for the project.
 
-The stack is intentionally kept simple enough for a university networking project while still providing meaningful implementation and resume value.
+Project narrative belongs in `README.md` and `docs/PROJECT_CONTEXT.md`. Detailed system structure belongs in `docs/architecture/SYSTEM_ARCHITECTURE.md`.
 
----
-
-## 2. Selected Technology Stack
+## Selected Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | React + TypeScript + Vite |
 | Styling | CSS |
 | Backend | Python + FastAPI |
-| ASGI Server | Uvicorn |
+| API models | Pydantic |
+| ASGI server | Uvicorn |
 | Networking | Python `socket` + `ssl` |
-| Certificate Parsing | Python `cryptography` |
-| API Format | REST + JSON |
-| Backend Testing | pytest |
-| Frontend Testing | Vitest |
-| Version Control | Git + GitHub |
-| Security Scoring | Rule-based Python implementation |
+| Certificate parsing | `cryptography` |
+| API format | REST + JSON |
+| Backend testing | pytest |
+| Frontend testing | Vitest + Testing Library |
+| Version control | Git + GitHub |
+| CI | GitHub Actions |
+| Security scoring | Rule-based Python implementation |
 | Database | None for MVP |
-| Deployment | Not required for MVP |
 
-The project uses a client-server architecture. The React frontend sends an HTTPS target URL to the FastAPI backend. The backend performs DNS resolution, establishes the TCP/TLS connection, extracts TLS and certificate information, runs security checks, and returns one structured JSON response.
+## Why These Technologies
 
----
+React + TypeScript supports a typed dashboard with reusable components and API-aligned data models.
 
-## 3. Why These Technologies Were Selected
+Vite keeps local development and builds lightweight.
 
-### React + TypeScript + Vite
+FastAPI provides a small REST layer, Pydantic validation, and useful local OpenAPI docs.
 
-React provides a component-based frontend suitable for:
+Python `socket` and `ssl` allow the project to demonstrate real DNS/TCP/TLS operations without delegating the core learning objective to an external scanner.
 
-- URL analysis input
-- security score dashboard
-- certificate information cards
-- TLS information display
-- handshake visualization
-- findings and recommendations
+`cryptography` provides X.509 parsing for certificate metadata.
 
-TypeScript provides static type checking for the API response and UI state.
+pytest and Vitest cover backend and frontend behavior with fast local feedback.
 
-Vite provides a lightweight development server and build system.
-
-### Python + FastAPI
-
-Python is well suited to networking and certificate inspection. FastAPI provides:
-
-- REST endpoint support
-- request/response validation through Pydantic
-- automatic OpenAPI documentation
-- straightforward integration with Python networking libraries
-
-### `socket` + `ssl`
-
-The project intentionally uses Python's standard networking APIs rather than a high-level external TLS scanner.
-
-`socket` is used for hostname resolution and TCP connectivity.
-
-`ssl` is used to create a TLS client connection and obtain negotiated TLS information and the peer certificate.
-
-### `cryptography`
-
-The `cryptography` package is used to parse the X.509 certificate and extract fields such as:
-
-- subject
-- issuer
-- validity period
-- Subject Alternative Names
-- serial number
-- self-signed status
-
-### pytest
-
-pytest is used for backend unit and integration testing.
-
-### Vitest
-
-Vitest is the planned frontend test framework for React/TypeScript components and utility functions.
-
----
-
-## 4. Current Repository Structure
+## Current Repository Responsibilities
 
 ```text
-TLS-SSL-Handshake-Visualizer/
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   │       └── analyze.py
-│   │   ├── models/
-│   │   │   └── schemas.py
-│   │   ├── tls/
-│   │   │   ├── connection.py
-│   │   │   └── analyzer.py
-│   │   ├── certificate/
-│   │   │   └── parser.py
-│   │   ├── security/
-│   │   │   ├── scorer.py
-│   │   │   └── rules.py
-│   │   └── services/
-│   │       ├── analysis_service.py
-│   │       └── url_validator.py
-│   ├── tests/
-│   │   ├── integration/
-│   │   └── unit/
-│   ├── requirements.txt
-│   └── .venv/
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── AnalyzeForm.tsx
-│   │   ├── visualizer/
-│   │   ├── services/
-│   │   │   └── api.ts
-│   │   ├── types/
-│   │   │   └── analysis.ts
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── package.json
-│   └── vite.config.ts
-├── docs/
-│   ├── api/
-│   ├── architecture/
-│   ├── demo/
-│   └── scoring/
-├── scripts/
-├── README.md
-└── .gitignore
+backend/
+  app/
+    api/              HTTP routes
+    models/           Pydantic schemas
+    security/         rules, scoring, recommendations
+    services/         orchestration and URL validation
+    tls/              DNS/TCP/TLS analysis
+    visualization/    representative handshake data
+  tests/              backend tests
+
+frontend/
+  src/
+    components/       dashboard UI components
+    services/         API client
+    styles/           CSS
+    tests/            frontend tests
+    types/            API TypeScript types
+    visualizer/       handshake visualizer
+
+docs/
+  api/                API contract
+  architecture/       architecture and standards
+  demo/               demonstration guide
+  scoring/            scoring specification
 ```
 
-The exact structure may grow as the feature modules are implemented. New files should follow the ownership and module boundaries described in the project documentation.
-
----
-
-## 5. Backend Development Standard
-
-Backend code should be organized by responsibility.
+## Backend Standards
 
 ### API Layer
 
-`backend/app/api/`
+Location:
 
-Responsible for:
+```text
+backend/app/api/
+```
 
-- HTTP routes
-- request handling
-- HTTP-level validation/errors
-- mapping service results to API responses
+Responsibilities:
 
-API routes should not contain the actual TLS-analysis logic.
+- define HTTP routes;
+- receive request models;
+- call service-layer functions;
+- map URL validation errors to HTTP 400;
+- avoid leaking stack traces or raw internal exceptions.
+
+API routes should remain thin.
 
 ### Models
 
-`backend/app/models/`
+Location:
 
-Contains Pydantic request and response models.
+```text
+backend/app/models/schemas.py
+```
 
-The API contract in `docs/api/API_CONTRACT.md` is the source of truth for externally visible request and response structures.
+Responsibilities:
 
-### TLS Layer
-
-`backend/app/tls/`
-
-Responsible for:
-
-- hostname resolution
-- TCP/TLS connection establishment
-- negotiated TLS information
-- TLS connection-related operations
-
-### Certificate Layer
-
-`backend/app/certificate/`
-
-Responsible for X.509 parsing and certificate-specific extraction.
-
-### Security Layer
-
-`backend/app/security/`
-
-Responsible for:
-
-- security rules
-- finding generation
-- security score calculation
-- grade calculation
-- recommendations
-
-The current scorer is a baseline implementation. The final scoring methodology should be documented separately in `docs/scoring/SCORING_METHODOLOGY.md`.
+- represent the public API contract;
+- define nullability;
+- preserve snake_case field names;
+- constrain status/severity/grade values where practical.
 
 ### Services
 
-`backend/app/services/`
+Location:
 
-Coordinates multiple backend components into application-level workflows.
+```text
+backend/app/services/
+```
 
-`analysis_service.py` currently coordinates URL validation, TLS analysis, and security scoring.
+Responsibilities:
 
----
+- orchestrate URL validation, TLS analysis, scoring, and visualization;
+- build success/failure response envelopes;
+- keep presentation concerns out of backend logic.
 
-## 6. Frontend Development Standard
+### TLS Layer
+
+Location:
+
+```text
+backend/app/tls/
+```
+
+Responsibilities:
+
+- DNS resolution;
+- TCP connection;
+- TLS negotiation;
+- negotiated protocol/cipher extraction;
+- peer certificate retrieval.
+
+TLS code must not calculate the final score.
+
+### Security Layer
+
+Location:
+
+```text
+backend/app/security/
+```
+
+Responsibilities:
+
+- stable rule IDs;
+- deterministic findings;
+- score and grade calculation;
+- recommendations.
+
+Scoring methodology is documented in:
+
+```text
+docs/scoring/SECURITY_SCORING.md
+```
+
+### Visualization Data
+
+Location:
+
+```text
+backend/app/visualization/
+```
+
+Responsibilities:
+
+- provide representative TLS 1.2/TLS 1.3 handshake steps;
+- include observed/derived values where available;
+- avoid fabricated packet data.
+
+## Frontend Standards
 
 Frontend code should use React components with TypeScript.
 
-Responsibilities should remain separated:
+Location responsibilities:
 
-- `components/` — reusable UI components
-- `visualizer/` — handshake visualization
-- `services/` — API communication
-- `types/` — shared frontend TypeScript types
+- `components/`: focused UI components;
+- `visualizer/`: handshake visualization;
+- `services/`: API communication;
+- `types/`: shared API-aligned types;
+- `styles/`: CSS;
+- `tests/`: frontend test suites.
 
-The frontend should consume the backend API rather than reimplementing TLS or certificate logic.
+Frontend components should not:
 
-The frontend should not contain security-scoring rules that duplicate backend logic.
+- perform TLS/network analysis;
+- duplicate backend scoring rules;
+- invent successful analysis data when the backend fails;
+- silently transform API field names into a different contract.
 
----
+## Naming Conventions
 
-## 7. Networking and TLS Boundary
-
-The backend performs the actual network analysis.
-
-The intended flow is:
-
-```text
-React UI
-   |
-   | POST /analyze
-   v
-FastAPI
-   |
-   v
-URL validation
-   |
-   v
-DNS resolution
-   |
-   v
-TCP connection :443
-   |
-   v
-TLS negotiation
-   |
-   +--> TLS version
-   +--> Cipher suite
-   +--> Peer certificate
-            |
-            v
-       X.509 parsing
-            |
-            v
-       Security scoring
-            |
-            v
-      Unified JSON response
-```
-
-### Important Technical Limitation
-
-The MVP does **not** capture raw TLS packets.
-
-The handshake visualizer represents the protocol sequence and enriches the steps with information obtained from the real TLS connection.
-
-Therefore, the project should not claim to be a packet sniffer or packet-level TLS analyzer unless packet capture is implemented in a future version.
-
----
-
-## 8. URL Validation
-
-The backend accepts HTTPS website targets.
-
-Current validation rules include:
-
-- HTTPS scheme required
-- credentials in the URL are rejected
-- only port `443` is accepted
-- hostname must be present
-- URL paths are allowed
-
-Network operations should use explicit timeouts.
-
-For a future public deployment, the backend must additionally protect against SSRF by rejecting loopback, private, link-local, multicast, and other inappropriate destinations after DNS resolution.
-
----
-
-## 9. Certificate and TLS Inspection
-
-The analyzer currently extracts information including:
-
-### Network
-
-- resolved IP addresses
-
-### TLS
-
-- negotiated TLS version
-- negotiated cipher suite
-- cipher security bits where available
-
-### Certificate
-
-- subject
-- issuer
-- validity start
-- validity end
-- Subject Alternative Names
-- serial number
-- hostname match
-- self-signed status
-
-Certificate parsing and hostname matching should remain isolated from the API layer.
-
----
-
-## 10. Security Scoring Standard
-
-The security engine is rule based.
-
-Each rule should have:
-
-- stable rule ID
-- status
-- severity
-- title
-- explanation
-- evidence
-
-The scoring engine converts the findings into:
-
-- numerical score from 0–100
-- security grade
-- recommendations
-
-The baseline implementation currently evaluates TLS version, certificate validity, hostname matching, and self-signed status.
-
-The final rule weights and methodology belong in:
+API JSON fields use snake_case:
 
 ```text
-docs/scoring/SCORING_METHODOLOGY.md
+analysis_status
+resolved_ips
+valid_from
+valid_until
+serial_number
+hostname_match
+self_signed
+protocol_version
+actual_data
+rule_id
 ```
 
-The scoring engine should remain deterministic for the same analysis result.
+TypeScript may use the same snake_case names for API objects to avoid transformation mismatches.
 
----
+Rule IDs use uppercase snake_case:
 
-## 11. API Contract Discipline
+```text
+TLS_VERSION
+CERT_EXPIRY
+HOSTNAME_MATCH
+EXPIRY_PROXIMITY
+SELF_SIGNED
+CERT_IDENTITY
+```
 
-The API contract is defined separately in:
+## Configuration Standard
+
+Frontend API base URL:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Local development and tests default to `http://127.0.0.1:8000` when the variable is absent.
+
+Production frontend builds/runtime must define `VITE_API_BASE_URL` explicitly.
+
+Document local-only settings in:
+
+```text
+frontend/.env.example
+```
+
+Do not commit `.env`.
+
+## API Contract Discipline
+
+The API contract is defined in:
 
 ```text
 docs/api/API_CONTRACT.md
 ```
 
-Frontend and backend developers should implement against that contract.
+When a field or response behavior changes:
 
-If a field or response structure needs to change:
+1. update the API contract;
+2. update backend Pydantic models;
+3. update backend producers;
+4. update frontend TypeScript types;
+5. update frontend consumers;
+6. update tests;
+7. run backend and frontend validation.
 
-1. Discuss the change with the team.
-2. Update the API contract.
-3. Update backend models.
-4. Update frontend TypeScript types.
-5. Update tests.
-6. Verify the complete frontend-backend flow.
+Do not silently rename fields, change nullability, or alter response envelopes on only one side.
 
-Do not silently change response structures on one side only.
+## No-Fake-Data Rule
 
----
+Do not fabricate:
 
-## 12. Error Handling
+- TLS version;
+- cipher suite;
+- certificate issuer;
+- certificate validity dates;
+- resolved IPs;
+- security evidence;
+- packet contents;
+- successful handshake data after failure.
 
-Expected analysis failures should be represented by the structured API response where possible.
+Use `null`, `[]`, or a structured failure response.
 
-Examples include:
+## Security Honesty Rules
 
-- DNS resolution failure
-- TCP connection failure
-- TLS negotiation failure
-- timeout
-- certificate-related analysis failure
+- The visualizer is representative protocol visualization, not packet capture.
+- `self_signed: false` does not prove a trusted CA chain.
+- The score is educational, not a complete security rating.
+- The backend currently lacks public-deployment SSRF hardening.
+- Do not claim revocation, CT log, browser trust, or complete certificate-chain validation unless implemented.
 
-The response should provide a meaningful error code and message rather than exposing an internal Python traceback.
+## Testing Standard
 
-Unexpected programming errors should still be handled safely by the API layer.
+Backend tests should cover:
 
----
+- URL validation;
+- service success and failure behavior;
+- API response structure;
+- scoring rules;
+- grade boundaries;
+- failure envelope shape.
 
-## 13. Timeouts and Reliability
+Frontend tests should cover:
 
-External network operations must not be allowed to hang indefinitely.
+- URL input behavior;
+- loading state;
+- error state;
+- successful result rendering;
+- security score rendering;
+- certificate rendering;
+- visualizer entry behavior;
+- API failure handling.
 
-The implementation should use explicit connection/operation timeouts.
+Recommended local quality gate:
 
-The analyzer should fail gracefully when a target:
-
-- does not resolve
-- refuses the connection
-- times out
-- does not complete TLS negotiation
-- returns unusable certificate information
-
----
-
-## 14. Testing Standard
-
-### Backend
-
-Use pytest for:
-
-- URL validation
-- certificate parsing
-- hostname matching
-- scoring rules
-- service behavior
-- API integration
-
-### Frontend
-
-Use Vitest for:
-
-- component behavior
-- API/service utilities
-- visualization data handling
-- important UI states
-
-### Minimum Quality Gate
-
-Before a feature is merged:
-
-```text
-Backend tests pass
-Frontend build passes
-No obvious TypeScript errors
-No uncommitted accidental files
-API contract remains consistent
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m pytest
 ```
 
-The project should eventually run these checks automatically in GitHub Actions for pushes and pull requests.
-
----
-
-## 15. Git and GitHub Standard
-
-The repository uses GitHub as the shared source of truth.
-
-### Branching
-
-Use feature branches rather than committing feature work directly to `main`.
-
-Example:
-
-```text
-main
-├── feature/tls-analyzer
-├── feature/security-scoring
-├── feature/handshake-visualizer
-├── feature/frontend-dashboard
-└── feature/testing-docs
+```powershell
+cd frontend
+npm run test
+npm run lint
+npm run build
 ```
 
-Branch names should clearly describe the work.
+CI should run the same major checks.
 
-### Commits
+## Git Workflow
 
-Use concise, meaningful commit messages.
+Use feature/fix/docs branches for work intended for review.
 
-Preferred style:
+Examples:
+
+```text
+feature/tls-analyzer
+feature/security-scoring
+feature/handshake-visualizer
+feature/frontend-dashboard
+fix/frontend-env
+docs/scoring-spec
+```
+
+Commit style:
 
 ```text
 feat: add certificate parser
@@ -481,150 +347,146 @@ refactor: separate scoring rules
 chore: configure CI
 ```
 
-### Pull Requests
+Pull requests should:
 
-Feature branches should be merged through pull requests.
+- explain the change;
+- identify affected modules;
+- mention validation commands;
+- avoid unrelated edits;
+- call out API contract changes explicitly.
 
-A PR should:
+## Branch And PR Expectations
 
-- explain what changed
-- identify important implementation details
-- mention tests/build checks
-- avoid unrelated changes
+`main` should remain buildable.
 
-As CI is added, required checks should be used to protect `main`.
+Do not push experimental work directly to `main` when working as a team.
 
----
+Before opening or merging a PR:
 
-## 16. Dependency and Environment Management
+```powershell
+git status
+git diff
+```
 
-Backend dependencies are recorded in:
+Run relevant tests/builds. Avoid committing:
+
+- `.env`;
+- virtual environments;
+- `node_modules`;
+- frontend `dist`;
+- caches;
+- credentials;
+- private keys;
+- machine-specific files.
+
+## Code Ownership
+
+Primary ownership areas:
+
+- network/TLS backend;
+- certificate parsing;
+- security scoring;
+- frontend dashboard;
+- handshake visualizer;
+- integration/testing/documentation.
+
+Shared files require extra care:
+
+```text
+docs/api/API_CONTRACT.md
+backend/app/models/schemas.py
+frontend/src/types/analysis.ts
+frontend/src/services/api.ts
+```
+
+Coordinate before changing shared contracts.
+
+## Dependency Discipline
+
+Backend dependencies belong in:
 
 ```text
 backend/requirements.txt
 ```
 
-The local Python virtual environment is:
-
-```text
-backend/.venv/
-```
-
-The virtual environment must not be committed to Git.
-
-Frontend dependencies are managed by npm through:
+Frontend dependencies belong in:
 
 ```text
 frontend/package.json
 frontend/package-lock.json
 ```
 
-`node_modules/` must not be committed.
+Avoid broad dependency upgrades during feature work. Add dependencies only when they materially simplify or strengthen the implementation.
 
-Environment-specific secrets or configuration should use environment variables and `.env` files. `.env` files containing secrets must not be committed.
+## CORS And Local Development
 
-A `.env.example` file may document required configuration without containing secrets.
+The backend should allow known local frontend origins for development.
 
----
+Do not open CORS broadly for a public deployment without a clear security decision.
 
-## 17. Local Development
-
-### Backend
-
-From the repository root:
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
-```
-
-The backend runs on:
-
-```text
-http://127.0.0.1:8000
-```
-
-Health check:
-
-```text
-GET /health
-```
-
-### Frontend
-
-In another PowerShell terminal:
-
-```powershell
-cd frontend
-npm run dev
-```
-
-The Vite development server provides the frontend URL shown in the terminal.
-
----
-
-## 18. CORS
-
-During local development, the frontend and backend may run on different local origins.
-
-If browser requests are blocked by CORS, configure FastAPI CORS middleware for the known local frontend origin.
-
-CORS should not be opened broadly without a reason, especially in a public deployment.
-
----
-
-## 19. Security Boundary
+## Security Boundary For Public Deployment
 
 The backend performs outbound network requests based on user-provided URLs.
 
-This is an important security boundary.
+Before exposing it publicly, add:
 
-For the current local university-project MVP, the implementation focuses on HTTPS analysis and controlled inputs.
+- SSRF protections;
+- destination IP validation after DNS resolution;
+- connection limits;
+- request timeouts;
+- response-size controls where relevant;
+- rate limiting;
+- safe logging;
+- deployment-specific CORS;
+- careful exception handling.
 
-Before public deployment, the application should additionally implement:
+The application should never expose arbitrary internal network access through `/analyze`.
 
-- SSRF protection
-- destination IP validation
-- connection limits
-- request timeouts
-- response-size limits where relevant
-- rate limiting
-- safe logging
-- careful exception handling
+## Technologies Intentionally Excluded From MVP
 
-The application should never expose arbitrary internal network access through the analysis endpoint.
+The MVP does not require:
 
----
+- database;
+- Docker;
+- Kubernetes;
+- cloud deployment;
+- authentication;
+- browser extension;
+- raw packet-capture stack;
+- complex distributed architecture.
 
-## 20. Logging
+These can be considered later only when a concrete requirement justifies them.
 
-Logs should help diagnose:
+## Documentation Standard
 
-- analysis failures
-- network errors
-- application errors
+Documentation ownership:
 
-Logs should not expose sensitive information unnecessarily.
+| Document | Purpose |
+|---|---|
+| `README.md` | project entry point and quick orientation |
+| `docs/PROJECT_CONTEXT.md` | current scope, status, and repository orientation |
+| `docs/architecture/SYSTEM_ARCHITECTURE.md` | authoritative system architecture |
+| `docs/architecture/TECH_STACK_AND_DEVELOPMENT_STANDARD.md` | engineering/development standards |
+| `docs/api/API_CONTRACT.md` | authoritative API contract |
+| `docs/scoring/SECURITY_SCORING.md` | authoritative scoring specification |
+| `docs/demo/DEMO_GUIDE.md` | demonstration instructions |
 
-In particular, credentials must never be logged. The current URL validator rejects URLs containing user credentials.
+When implementation changes a user-visible behavior, API field, architecture boundary, scoring rule, setup command, or validation command, review the corresponding document.
 
----
+## AI-Assisted Development Standard
 
-## 21. AI-Assisted Development Standard
+AI-generated changes remain the team's responsibility.
 
-AI coding tools may be used by team members, but generated code remains the team's responsibility.
+For AI-assisted work:
 
-For AI-assisted changes:
+1. understand the generated code before keeping it;
+2. verify imports and dependencies;
+3. run relevant tests/build commands;
+4. review the diff;
+5. confirm module ownership boundaries;
+6. update documentation when behavior changes.
 
-1. Understand the generated code before committing it.
-2. Verify imports and dependencies.
-3. Run relevant tests/build commands.
-4. Review the diff.
-5. Confirm the change respects module ownership.
-6. Update documentation when behavior changes.
-
-A useful prompt structure is:
+Useful task prompt structure:
 
 ```text
 Context:
@@ -643,137 +505,9 @@ Validation:
 Which commands/tests must pass.
 ```
 
-AI should accelerate implementation, not replace code review or understanding.
+## Engineering Principle
 
----
-
-## 22. Module Ownership
-
-Team members should own their major feature areas while contributing to the shared integration.
-
-The major ownership areas are:
-
-- TLS handshake analysis
-- certificate/TLS data analysis
-- security scoring
-- frontend dashboard/visualization
-- integration/testing/documentation
-
-Shared foundation files should be changed carefully because multiple branches may depend on them.
-
-Feature owners should avoid implementing another member's core feature unless the team explicitly coordinates the work.
-
----
-
-## 23. Technologies Intentionally Excluded From the MVP
-
-The project does not require:
-
-- a database
-- Docker
-- Kubernetes
-- a cloud deployment
-- a dedicated packet-capture stack
-- a browser extension
-- authentication
-- a complex distributed architecture
-
-These technologies would increase project complexity without directly improving the Review-1 MVP.
-
-They can be considered only if a later project requirement justifies them.
-
----
-
-## 24. MVP Priority
-
-### P0 — Required
-
-- HTTPS URL input
-- FastAPI `/analyze`
-- DNS resolution
-- TCP/TLS connection
-- TLS version
-- cipher suite
-- certificate extraction
-- baseline security score
-- basic dashboard
-- handshake visualization
-
-### P1 — Important
-
-- SAN display
-- certificate expiry warnings
-- detailed findings
-- recommendations
-- loading/error states
-- backend tests
-- frontend tests
-- responsive UI
-- GitHub documentation
-- CI
-
-### P2 — Future Enhancement
-
-- certificate-chain visualization
-- HSTS analysis
-- HTTP security headers
-- PDF export
-- historical scans
-- packet-level TLS visualization
-
----
-
-## 25. Documentation Standard
-
-The project documentation should stay synchronized with the implementation.
-
-Important documentation locations:
-
-```text
-README.md
-docs/PROJECT_CONTEXT.md
-docs/api/API_CONTRACT.md
-docs/architecture/SYSTEM_ARCHITECTURE.md
-docs/architecture/TECH_STACK_AND_DEVELOPMENT_STANDARD.md
-docs/scoring/SCORING_METHODOLOGY.md
-docs/demo/DEMO_GUIDE.md
-```
-
-When implementation changes a user-visible behavior, API field, architecture boundary, scoring rule, or setup procedure, the corresponding documentation should be reviewed and updated.
-
-Before the final project submission, perform a documentation audit across all major documents.
-
----
-
-## 26. Current Status
-
-The shared project foundation is implemented.
-
-Currently available:
-
-- Git/GitHub repository
-- backend FastAPI application
-- `/health` endpoint
-- `/analyze` endpoint
-- URL validation
-- DNS resolution
-- TLS connection
-- TLS version/cipher extraction
-- X.509 certificate parsing
-- baseline security scoring
-- frontend React/Vite application
-- frontend API integration
-- typed frontend API models
-- initial analysis form
-- basic end-to-end analysis response
-
-The remaining major work is feature development by the respective owners, followed by integration, testing, UI refinement, documentation, and CI.
-
----
-
-## 27. Engineering Principle
-
-The project should prefer:
+Prefer:
 
 ```text
 simple architecture
@@ -785,5 +519,3 @@ simple architecture
 ```
 
 over unnecessary complexity.
-
-The goal is a working, understandable networking project that demonstrates TLS, PKI, DNS, TCP, HTTPS, client-server communication, and security analysis clearly.

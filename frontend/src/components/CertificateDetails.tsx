@@ -16,7 +16,7 @@ export const CertificateDetails: React.FC<CertificateDetailsProps> = ({ certific
           <span className="card-icon">📜</span>
           <div>
             <h2 className="card-title">X.509 Certificate Information</h2>
-            <p className="card-subtitle">Public key certificate trust & validity status</p>
+            <p className="card-subtitle">Certificate identity and validity details</p>
           </div>
         </div>
 

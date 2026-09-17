@@ -1,1087 +1,209 @@
 # TLS/SSL Handshake Visualizer & Website Security Analyzer
 
-> **BCSE308L - Computer Networks Project**
+An educational Computer Networks project that connects DNS, TCP, TLS/SSL, X.509 certificates, HTTPS, and rule-based security analysis into one working web application.
 
-An educational web application that connects the theory of **DNS, TCP, TLS/SSL, X.509 certificates, PKI, and HTTPS** to a real-world website analysis workflow.
+The user enters an HTTPS website, the backend establishes a real TLS connection to that server, extracts negotiated TLS and certificate information, evaluates selected security properties, and returns a structured response for the React dashboard and TLS handshake visualizer.
 
-The application allows a user to enter an HTTPS website, establishes a real TLS connection to that server, extracts the negotiated TLS/certificate information, evaluates the observed security properties using explainable rules, and presents the results through an interactive dashboard and TLS handshake visualizer.
+## Problem Statement
 
----
+TLS/SSL is central to modern Internet communication, but students often learn its parts separately:
 
-## Table of Contents
+- DNS resolution;
+- TCP connection setup;
+- TLS negotiation;
+- cipher suites;
+- X.509 certificates;
+- PKI concepts;
+- HTTPS application behavior.
 
-- [1. Project Overview](#1-project-overview)
-- [2. Problem Statement](#2-problem-statement)
-- [3. Objectives](#3-objectives)
-- [4. How the System Works](#4-how-the-system-works)
-- [5. Important Scope and Technical Honesty](#5-important-scope-and-technical-honesty)
-- [6. Features](#6-features)
-- [7. Architecture](#7-architecture)
-- [8. Technology Stack](#8-technology-stack)
-- [9. Repository Structure](#9-repository-structure)
-- [10. Backend Architecture](#10-backend-architecture)
-- [11. Frontend Architecture](#11-frontend-architecture)
-- [12. API Contract](#12-api-contract)
-- [13. Security Analysis Model](#13-security-analysis-model)
-- [14. TLS Handshake Visualization](#14-tls-handshake-visualization)
-- [15. MVP Scope](#15-mvp-scope)
-- [16. Future Scope](#16-future-scope)
-- [17. Getting Started](#17-getting-started)
-- [18. Development Workflow](#18-development-workflow)
-- [19. Git and Branching Guidelines](#19-git-and-branching-guidelines)
-- [20. Testing Strategy](#20-testing-strategy)
-- [21. Engineering Rules](#21-engineering-rules)
-- [22. Team Responsibilities](#22-team-responsibilities)
-- [23. Documentation](#23-documentation)
-- [24. Limitations](#24-limitations)
-- [25. Academic Concepts Demonstrated](#25-academic-concepts-demonstrated)
-- [26. Current Project Status](#26-current-project-status)
-- [27. Contributors](#27-contributors)
-- [28. License](#28-license)
+This project demonstrates how those concepts fit together during a real HTTPS connection.
 
----
+## Objectives
 
-# 1. Project Overview
+1. Perform live HTTPS/TLS analysis through a backend service.
+2. Present network, TLS, certificate, and security results in a clear frontend dashboard.
+3. Explain security findings using deterministic, testable rules.
+4. Visualize the TLS 1.2 or TLS 1.3 protocol sequence using backend-provided context.
+5. Preserve technical honesty by distinguishing observed data, derived data, and representative visualization data.
 
-The **TLS/SSL Handshake Visualizer & Website Security Analyzer** is a client-server educational application designed to make the HTTPS connection process easier to understand.
+## Current Capabilities
 
-A user enters an HTTPS URL such as:
+- HTTPS-only URL validation.
+- Rejection of credentials in URLs.
+- Port 443-only analysis.
+- DNS hostname resolution.
+- TCP connection through Python networking APIs.
+- TLS negotiation through Python `ssl`.
+- Negotiated TLS version extraction.
+- Cipher suite name, protocol, and bit information where available.
+- Peer certificate retrieval.
+- Certificate subject, issuer, validity, SAN, serial number, hostname match, and apparent self-signed status.
+- Deterministic security score, grade, findings, and recommendations.
+- Structured success and failure responses.
+- React dashboard for target, network, TLS, certificate, scoring, findings, recommendations, and visualization entry point.
+- Conceptual TLS 1.2/TLS 1.3 handshake visualization enriched with observed values.
+- Backend tests, frontend tests, lint, build, and CI validation.
 
-```text
-https://example.com
-```
+## Important Technical Limitations
 
-The backend then performs a real network/TLS analysis:
+This is a real connection analyzer, not a packet capture tool.
 
-```text
-URL
- │
- ▼
-URL Validation
- │
- ▼
-Hostname Resolution (DNS)
- │
- ▼
-TCP Connection to Port 443
- │
- ▼
-TLS Negotiation
- │
- ├── Negotiated TLS Version
- ├── Negotiated Cipher Suite
- └── Peer Certificate
-       │
-       ▼
-Certificate Parsing
-       │
-       ├── Subject
-       ├── Issuer
-       ├── Validity
-       ├── SAN
-       └── Hostname Match
-       │
-       ▼
-Security Scoring
-       │
-       ▼
-Unified JSON Response
-       │
-       ├── Security Dashboard
-       └── TLS Handshake Visualizer
-```
+The backend uses Python `socket`, `ssl`, and `cryptography` APIs. It does not capture raw TLS packets or reconstruct every TLS record. The visualizer is a representative protocol sequence enriched with backend-observed values, not a packet transcript.
 
-The goal is not simply to display certificate information. The project combines several computer-networking concepts into one coherent workflow and presents the results in a form that is useful for both **learning and demonstration**.
+`self_signed` is based on certificate subject/issuer comparison. A value of `false` means the subject and issuer differ, so the certificate does not appear self-signed. It does not prove complete CA-chain trust, revocation status, Certificate Transparency status, or browser trust.
 
----
+The security score is educational and explainable. It is not a formal penetration test, vulnerability scan, browser-grade certificate audit, or guarantee that a website is secure.
 
-# 2. Problem Statement
+The current backend is appropriate for a local academic MVP. Public deployment would require SSRF protections, destination-IP restrictions, rate limiting, safe logging, and operational hardening.
 
-TLS/SSL is fundamental to modern Internet communication, but the actual process behind an HTTPS connection is often difficult to visualize.
-
-Students commonly learn the following concepts separately:
-
-- DNS
-- TCP
-- TLS/SSL
-- Public Key Infrastructure (PKI)
-- X.509 certificates
-- Cipher suites
-- HTTPS
-
-The project addresses this gap by creating an interactive system that demonstrates how these concepts connect when a real HTTPS connection is established.
-
-The application should answer questions such as:
-
-- What IP address does the hostname resolve to?
-- Is a TCP connection established on port 443?
-- Which TLS version was negotiated?
-- Which cipher suite was negotiated?
-- What certificate did the server provide?
-- Who issued the certificate?
-- Is the certificate currently valid?
-- Does the certificate match the requested hostname?
-- What security findings can be derived from the observed data?
-- What does the TLS handshake conceptually look like?
-
----
-
-# 3. Objectives
-
-## Primary Objectives
-
-1. **Interactive TLS Handshake Visualization**
-   - Represent the major stages of a TLS handshake.
-   - Distinguish client and server actions.
-   - Explain the purpose of important handshake messages.
-   - Adapt the conceptual sequence for TLS 1.2 and TLS 1.3.
-
-2. **HTTPS Website Security Analysis**
-   - Accept an HTTPS URL.
-   - Resolve the hostname.
-   - Establish a TCP connection to port 443.
-   - Perform a TLS handshake.
-   - Extract negotiated TLS information.
-   - Parse the server's X.509 certificate.
-   - Evaluate selected security properties.
-
-3. **Explainable Security Scoring**
-   - Convert observed security properties into deterministic findings.
-   - Produce a score and grade.
-   - Explain why a finding passed, generated a warning, or failed.
-   - Provide recommendations where appropriate.
-
-4. **Educational Presentation**
-   - Present networking information in a clear dashboard.
-   - Connect real observed values with the conceptual TLS protocol flow.
-   - Make the system suitable for a Computer Networks project demonstration.
-
----
-
-# 4. How the System Works
-
-The analysis pipeline is divided into several stages.
-
-## Stage 1 - URL Input
-
-The frontend accepts an HTTPS URL from the user.
-
-Example:
+## How The System Works
 
 ```text
-https://example.com
+User enters HTTPS URL
+      |
+      v
+React frontend validates local UI state
+      |
+      v
+POST /analyze
+      |
+      v
+FastAPI route validates request envelope
+      |
+      v
+URL validator checks HTTPS/host/port/credentials
+      |
+      v
+TLS analyzer resolves DNS, opens TCP, negotiates TLS
+      |
+      v
+Certificate parser extracts X.509 metadata
+      |
+      v
+Security scorer evaluates deterministic rules
+      |
+      v
+Visualization builder creates representative handshake steps
+      |
+      v
+AnalyzeResponse JSON
+      |
+      v
+React dashboard renders results or failure state
 ```
 
-The backend validates the URL before attempting a connection.
+## Architecture Overview
 
----
-
-## Stage 2 - DNS Resolution
-
-The hostname is resolved to one or more IP addresses.
-
-Example:
+The project uses a client-server architecture.
 
 ```text
-example.com
-    ↓
-93.184.216.34
+Browser / React / TypeScript / Vite
+        |
+        | REST JSON
+        v
+FastAPI backend / Pydantic schemas
+        |
+        +-- URL validation
+        +-- DNS + TCP + TLS analysis
+        +-- certificate parsing
+        +-- security scoring
+        +-- visualization data assembly
+        |
+        v
+External HTTPS server on port 443
 ```
 
-The resulting IP addresses are returned as part of the network analysis.
+Backend responsibilities:
 
----
+- network operations;
+- TLS/certificate observation;
+- derived security properties;
+- score and grade calculation;
+- structured API responses.
 
-## Stage 3 - TCP Connection
+Frontend responsibilities:
 
-The backend establishes a TCP connection to:
+- URL input and interaction;
+- loading/error/success states;
+- API client behavior;
+- dashboard rendering;
+- visualizer presentation.
 
-```text
-<hostname>:443
-```
+The shared boundary is documented in [docs/api/API_CONTRACT.md](docs/api/API_CONTRACT.md).
 
-Port 443 is the standard port used for HTTPS.
-
-A timeout is applied so that unreachable or slow servers do not cause the application to hang indefinitely.
-
----
-
-## Stage 4 - TLS Negotiation
-
-The TCP connection is wrapped using Python's TLS/SSL facilities.
-
-The TLS layer negotiates parameters with the remote server, including:
-
-- TLS protocol version
-- Cipher suite
-
-The application records the values actually negotiated by the TLS library.
-
----
-
-## Stage 5 - Certificate Extraction
-
-The peer certificate presented by the server is obtained and parsed using the `cryptography` library.
-
-Relevant fields include:
-
-- Subject
-- Issuer
-- Validity start
-- Validity end
-- Subject Alternative Names (SAN)
-- Serial number
-- Hostname match
-- Self-signed status
-
----
-
-## Stage 6 - Security Evaluation
-
-The observed TLS and certificate information is passed to the security scoring engine.
-
-The scoring engine applies deterministic rules and produces:
-
-- Score
-- Grade
-- Findings
-- Recommendations
-
-The scoring system is intentionally explainable rather than being a black-box security rating.
-
----
-
-## Stage 7 - Frontend Presentation
-
-The backend returns a unified JSON response.
-
-The frontend displays:
-
-- Target information
-- Network information
-- TLS information
-- Certificate information
-- Security score
-- Security findings
-- Recommendations
-- Handshake visualization
-
----
-
-# 5. Important Scope and Technical Honesty
-
-## The MVP Does Not Capture Raw TLS Packets
-
-The project uses Python's high-level networking and TLS APIs:
-
-```text
-socket
-ssl
-cryptography
-```
-
-Therefore, the MVP **does not claim to capture or inspect raw TLS packets**.
-
-Instead, it:
-
-1. establishes a real TCP connection,
-2. performs a real TLS negotiation,
-3. reads the negotiated TLS parameters and peer certificate,
-4. parses the certificate,
-5. combines the observed information with a conceptual protocol visualization.
-
-The handshake visualizer therefore represents the **protocol sequence conceptually**, enriched with actual data obtained from the server.
-
-This distinction is important for technical accuracy.
-
-### Do not describe the MVP as:
-
-> "A packet-level TLS sniffer."
-
-### Prefer:
-
-> "A real TLS connection analyzer with an interactive protocol-sequence visualizer."
-
-Packet-level capture can be considered a future extension.
-
----
-
-# 6. Features
-
-## Current / MVP Features
-
-- HTTPS URL input
-- URL validation
-- DNS hostname resolution
-- TCP connection to port 443
-- Real TLS handshake
-- TLS version detection
-- Cipher suite detection
-- Certificate extraction
-- X.509 certificate parsing
-- Certificate validity analysis
-- Subject and issuer display
-- SAN extraction
-- Hostname matching
-- Basic security score
-- Security grade
-- Explainable findings
-- Security recommendations
-- TLS handshake visualization
-- Backend REST API
-- Frontend/backend integration
-- Automated tests
-
-## Planned / Future Features
-
-The following are intentionally outside the initial MVP and can be added incrementally:
-
-- Full certificate-chain visualization
-- HTTP security-header analysis
-- HSTS detection
-- More advanced certificate-chain validation
-- Historical scan comparison
-- Exportable reports/PDFs
-- Packet-level TLS visualization
-- More detailed TLS extension analysis
-- Additional security rules
-- More comprehensive accessibility and UI improvements
-
----
-
-# 7. Architecture
-
-The project follows a client-server architecture.
-
-```text
-┌───────────────────────────────────────────────┐
-│                   Browser                     │
-│                                               │
-│  React + TypeScript + Vite                    │
-│                                               │
-│  ┌─────────────┐   ┌───────────────────────┐  │
-│  │ Dashboard   │   │ TLS Handshake         │  │
-│  │             │   │ Visualizer            │  │
-│  └─────────────┘   └───────────────────────┘  │
-│             │                                  │
-└─────────────┼──────────────────────────────────┘
-              │ HTTP/JSON
-              ▼
-┌───────────────────────────────────────────────┐
-│              FastAPI Backend                   │
-│                                               │
-│  API Route                                    │
-│      │                                        │
-│      ▼                                        │
-│  Analysis Service                             │
-│      │                                        │
-│      ├── URL Validation                       │
-│      ├── DNS Resolution                      │
-│      ├── TCP Connection                       │
-│      ├── TLS Analysis                         │
-│      ├── Certificate Parsing                  │
-│      └── Security Scoring                     │
-│                                               │
-└──────────────────┬────────────────────────────┘
-                   │
-                   │ socket + TLS
-                   ▼
-          ┌──────────────────┐
-          │ HTTPS Web Server  │
-          │      :443         │
-          └──────────────────┘
-```
-
----
-
-# 8. Technology Stack
+## Technology Stack
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Frontend | React | User interface |
-| Frontend Language | TypeScript | Type-safe frontend development |
-| Frontend Tooling | Vite | Development/build tooling |
-| Styling | CSS | UI styling |
+| Frontend | React | Component-based UI |
+| Frontend language | TypeScript | API and UI type safety |
+| Frontend tooling | Vite | Development server and build |
+| Styling | CSS | Dashboard and visualizer styling |
 | Backend | Python | Networking and application logic |
-| Backend Framework | FastAPI | REST API |
-| Server | Uvicorn | ASGI application server |
-| Networking | `socket` | TCP networking |
-| TLS | Python `ssl` | TLS connection and negotiated parameters |
-| Certificate Parsing | `cryptography` | X.509 certificate inspection |
-| Backend Testing | pytest | Automated backend tests |
-| Frontend Testing | Vitest | Automated frontend tests |
-| API Format | JSON | Frontend/backend communication |
-| Version Control | Git | Source control |
-| Hosting/Collaboration | GitHub | Repository and team collaboration |
+| Backend framework | FastAPI | REST API |
+| API schemas | Pydantic | Request/response validation |
+| Server | Uvicorn | ASGI runtime |
+| Networking | Python `socket` | DNS/TCP operations |
+| TLS | Python `ssl` | TLS connection and negotiated data |
+| Certificates | `cryptography` | X.509 parsing |
+| Backend tests | pytest | Backend validation |
+| Frontend tests | Vitest + Testing Library | UI and behavior tests |
+| CI | GitHub Actions | Automated validation |
 
----
-
-# 9. Repository Structure
-
-The repository is organized to separate application code, documentation, and supporting scripts.
+## Repository Layout
 
 ```text
 TLS-SSL-Handshake-Visualizer/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   │       └── analyze.py
-│   │   ├── models/
-│   │   │   └── schemas.py
-│   │   ├── tls/
-│   │   │   ├── connection.py
-│   │   │   └── analyzer.py
-│   │   ├── certificate/
-│   │   │   └── parser.py
-│   │   ├── security/
-│   │   │   ├── scorer.py
-│   │   │   ├── rules.py
-│   │   │   └── recommendations.py
-│   │   └── services/
-│   │       └── analysis_service.py
-│   │
-│   └── tests/
-│
+│   │   ├── api/routes/          HTTP routes
+│   │   ├── models/              Pydantic API schemas
+│   │   ├── security/            scoring rules and recommendations
+│   │   ├── services/            analysis orchestration and validation
+│   │   ├── tls/                 DNS/TCP/TLS analysis
+│   │   └── visualization/       handshake step construction
+│   ├── tests/                   backend tests
+│   └── requirements.txt
 ├── frontend/
+│   ├── public/                  static public assets
 │   ├── src/
-│   │   ├── components/
-│   │   ├── visualizer/
-│   │   ├── services/
-│   │   │   └── api.ts
-│   │   ├── types/
-│   │   │   └── analysis.ts
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   │
-│   └── tests/
-│
+│   │   ├── components/          dashboard UI components
+│   │   ├── services/            API client
+│   │   ├── styles/              dashboard styles
+│   │   ├── tests/               frontend tests
+│   │   ├── types/               API TypeScript types
+│   │   └── visualizer/          handshake visualizer
+│   ├── .env.example
+│   └── package.json
 ├── docs/
-│   ├── api/
-│   │   └── API_CONTRACT.md
-│   ├── architecture/
-│   │   ├── SYSTEM_ARCHITECTURE.md
-│   │   └── TECH_STACK_AND_DEVELOPMENT_STANDARD.md
-│   ├── demo/
-│   ├── scoring/
-│   └── PROJECT_CONTEXT.md
-│
-├── scripts/
-│
-├── .gitignore
-├── .gitattributes
+│   ├── api/                     API contract
+│   ├── architecture/            architecture and development standards
+│   ├── demo/                    viva/demo guide
+│   └── scoring/                 scoring specification
+├── .github/workflows/           CI
 └── README.md
 ```
 
-> The exact source-file structure may evolve as implementation progresses. The API contract and architectural boundaries should remain the primary reference when making structural changes.
+## Quick Start
 
----
-
-# 10. Backend Architecture
-
-The backend is responsible for all network-facing operations and for producing the unified analysis response.
-
-## Major Components
-
-### `main.py`
-
-Creates and configures the FastAPI application.
-
-Responsibilities include:
-
-- Application initialization
-- Router registration
-- Health endpoint registration
-- Middleware/configuration as required
-
----
-
-### `api/routes/analyze.py`
-
-Defines the HTTP API endpoint for analysis.
-
-Primary endpoint:
-
-```text
-POST /analyze
-```
-
-The route should remain thin and delegate actual work to the analysis service.
-
----
-
-### `models/schemas.py`
-
-Contains request and response models.
-
-Pydantic models should represent the API contract so that:
-
-- request validation is explicit,
-- response structure is predictable,
-- frontend/backend integration is easier,
-- contract violations are caught early.
-
----
-
-### `tls/connection.py`
-
-Responsible for low-level network/TLS connection operations.
-
-Responsibilities include:
-
-- hostname resolution support
-- TCP connection
-- TLS context configuration
-- TLS negotiation
-- timeout handling
-- retrieval of negotiated connection information
-
----
-
-### `tls/analyzer.py`
-
-Interprets the established TLS connection and extracts relevant TLS information.
-
-Examples:
-
-- TLS protocol version
-- Cipher suite
-- Cipher protocol
-- Cipher strength/bits where available
-
----
-
-### `certificate/parser.py`
-
-Parses the peer X.509 certificate.
-
-Responsibilities include extracting:
-
-- Subject
-- Issuer
-- Validity period
-- SAN
-- Serial number
-- Hostname match
-- Self-signed status
-
----
-
-### `security/`
-
-Contains the explainable security-analysis engine.
-
-Responsibilities:
-
-- Define security rules
-- Evaluate observations
-- Generate findings
-- Calculate score
-- Assign grade
-- Generate recommendations
-
-The security layer should not independently perform the network connection. It should evaluate the data supplied to it.
-
----
-
-### `services/analysis_service.py`
-
-Acts as the orchestration layer.
-
-Conceptually:
-
-```text
-validate URL
-     ↓
-resolve hostname
-     ↓
-connect TCP
-     ↓
-perform TLS handshake
-     ↓
-extract TLS data
-     ↓
-parse certificate
-     ↓
-run security rules
-     ↓
-construct visualization data
-     ↓
-return unified response
-```
-
-Keeping this orchestration separate from individual components makes the system easier to test and maintain.
-
----
-
-# 11. Frontend Architecture
-
-The frontend consumes the backend API and presents the analysis.
-
-## Major Responsibilities
-
-### Dashboard
-
-Displays:
-
-- target URL
-- hostname
-- resolved IPs
-- TLS version
-- cipher suite
-- certificate information
-- security score
-- security grade
-- findings
-- recommendations
-
----
-
-### Handshake Visualizer
-
-Displays the conceptual TLS protocol sequence.
-
-The visualizer should:
-
-- distinguish client/server participants,
-- show steps in sequence,
-- explain each message,
-- highlight important TLS concepts,
-- display actual observed information where available.
-
----
-
-### API Client
-
-`services/api.ts` should isolate HTTP communication from UI components.
-
-The UI should not contain scattered `fetch()` calls.
-
----
-
-### Shared Types
-
-`types/analysis.ts` should mirror the backend API contract.
-
-Frontend types should be updated whenever the agreed API contract changes.
-
----
-
-# 12. API Contract
-
-The backend exposes a small REST API.
-
-## Health Check
-
-```http
-GET /health
-```
-
-Used to determine whether the backend is running.
-
----
-
-## Website Analysis
-
-```http
-POST /analyze
-Content-Type: application/json
-```
-
-Request:
-
-```json
-{
-  "url": "https://example.com"
-}
-```
-
-The response contains the following major sections:
-
-```text
-target
-network
-tls
-certificate
-security
-visualization
-error
-analysis_status
-```
-
----
-
-## Conceptual Response
-
-```json
-{
-  "analysis_status": "SUCCESS",
-  "target": {
-    "url": "https://example.com",
-    "hostname": "example.com",
-    "port": 443
-  },
-  "network": {
-    "resolved_ips": []
-  },
-  "tls": {
-    "version": "TLSv1.3",
-    "cipher": {
-      "name": "...",
-      "protocol": "TLSv1.3",
-      "bits": 256
-    }
-  },
-  "certificate": {
-    "subject": "CN=example.com",
-    "issuer": "Example CA",
-    "valid_from": "...",
-    "valid_until": "...",
-    "san": [],
-    "serial_number": "...",
-    "hostname_match": true,
-    "self_signed": false
-  },
-  "security": {
-    "score": 0,
-    "grade": "A",
-    "findings": [],
-    "recommendations": []
-  },
-  "visualization": {
-    "protocol_version": "TLSv1.3",
-    "steps": []
-  },
-  "error": null
-}
-```
-
-The exact schema is defined in:
-
-```text
-docs/api/API_CONTRACT.md
-```
-
-That document is the **source of truth for frontend/backend integration**.
-
-### API Contract Rules
-
-- Use `snake_case`.
-- Do not fabricate unavailable values.
-- Use `null` for unavailable scalar values.
-- Use an empty array when no list values are available.
-- Clearly distinguish observed data from derived data.
-- Use `analysis_status` to distinguish a genuine low score from an analysis failure.
-- Coordinate contract changes with the team before implementation.
-
----
-
-# 13. Security Analysis Model
-
-The security score is intended as an **educational, explainable assessment**, not a replacement for professional security auditing.
-
-The scoring engine should operate on observable/derived properties such as:
-
-- TLS protocol version
-- certificate validity
-- certificate hostname matching
-- self-signed status
-- certificate expiry conditions
-- other explicitly implemented rules
-
-Each rule should have a stable identifier.
-
-Example conceptual finding:
-
-```text
-Rule ID: CERT_HOSTNAME_MATCH
-
-Status: PASS
-
-Severity: INFO
-
-Title:
-Certificate matches requested hostname
-
-Explanation:
-The certificate presented by the server covers the requested hostname.
-
-Evidence:
-hostname_match = true
-```
-
-A rule should produce deterministic output for the same input.
-
----
-
-## Finding Statuses
-
-The project uses:
-
-```text
-PASS
-WARN
-FAIL
-```
-
----
-
-## Severity Levels
-
-The API supports:
-
-```text
-INFO
-LOW
-MEDIUM
-HIGH
-CRITICAL
-```
-
----
-
-## Grade
-
-The score is represented as a value from:
-
-```text
-0–100
-```
-
-and converted into a letter grade:
-
-```text
-A
-B
-C
-D
-E
-F
-```
-
-The exact scoring rules should be maintained in the scoring documentation/code rather than duplicated across frontend components.
-
----
-
-# 14. TLS Handshake Visualization
-
-The visualizer is a conceptual representation of the TLS handshake.
-
-It should support the major differences between TLS versions.
-
-The application uses backend-provided visualization data from the `/analyze`
-response. Observed values such as SNI hostname, negotiated TLS version, cipher
-suite, and certificate metadata may be attached to the relevant conceptual
-steps. The MVP does not capture raw packets and must not present the
-visualization as a packet transcript.
-
-## TLS 1.2
-
-The visualization should communicate the larger sequence of messages involved in a typical TLS 1.2 handshake.
-
-Conceptual flow:
-
-```text
-Client                          Server
-  │                               │
-  │──── ClientHello ─────────────►│
-  │◄─── ServerHello ──────────────│
-  │◄─── Certificate ──────────────│
-  │◄─── ServerKeyExchange* ──────│
-  │◄─── ServerHelloDone ──────────│
-  │──── ClientKeyExchange ───────►│
-  │──── ChangeCipherSpec ────────►│
-  │──── Finished ────────────────►│
-  │◄─── ChangeCipherSpec ─────────│
-  │◄─── Finished ─────────────────│
-```
-
-`*` The exact TLS 1.2 handshake messages depend on the negotiated authentication/key-exchange configuration.
-
----
-
-## TLS 1.3
-
-TLS 1.3 simplifies the handshake and changes the cryptographic negotiation structure.
-
-Conceptual flow:
-
-```text
-Client                          Server
-  │                               │
-  │──── ClientHello ─────────────►│
-  │◄─── ServerHello ──────────────│
-  │◄─── EncryptedExtensions ──────│
-  │◄─── Certificate ──────────────│
-  │◄─── CertificateVerify ────────│
-  │◄─── Finished ─────────────────│
-  │──── Finished ────────────────►│
-```
-
-The visualizer should explain that the actual handshake sequence depends on the protocol version and negotiated configuration.
-
----
-
-# 15. MVP Scope
-
-The first working version should prioritize functionality over feature count.
-
-## P0 - Required
-
-### Backend
-
-- HTTPS URL validation
-- DNS resolution
-- TCP connection to port 443
-- TLS negotiation
-- TLS version
-- Cipher information
-- Peer certificate
-- Certificate parsing
-- Basic security score
-- FastAPI `/analyze`
-- FastAPI `/health`
-
-### Frontend
-
-- URL input
-- Analyze button
-- Loading state
-- Error state
-- Result dashboard
-- TLS information
-- Certificate information
-- Security score
-- Security findings
-- Handshake visualizer
-
----
-
-## P1 - Important
-
-- SAN display
-- Certificate expiry warnings
-- Better findings/recommendations
-- Responsive UI
-- Automated tests
-- Integration testing
-- Documentation
-- Clean setup instructions
-- Improved error handling
-
----
-
-## P2 - Future
-
-- Certificate-chain visualization
-- HSTS
-- HTTP security headers
-- PDF report export
-- Historical scans
-- Packet-level visualization
-- Advanced TLS extension information
-
----
-
-# 16. Future Scope
-
-The architecture is intentionally designed so that the MVP can later be expanded.
-
-Possible future modules include:
-
-```text
-Certificate Chain Analyzer
-        │
-        ▼
-HTTP Header Analyzer
-        │
-        ▼
-HSTS Analyzer
-        │
-        ▼
-Advanced TLS Extension Analyzer
-        │
-        ▼
-Historical Scan Storage
-        │
-        ▼
-Report Generator
-```
-
-A packet-level visualizer could also be introduced later using an appropriate packet-capture architecture.
-
-That would be a separate capability from the current high-level TLS API approach.
-
----
-
-# 17. Getting Started
-
-This section is the standard local-development setup for Windows PowerShell.
-
-## Prerequisites
-
-Install:
+Prerequisites:
 
 - Git
-- Python 3.x
+- Python 3.11+ recommended
 - Node.js and npm
-- A modern web browser
+- modern browser
 
-Verify:
-
-```powershell
-git --version
-python --version
-node --version
-npm --version
-```
-
----
-
-## Clone the Repository
-
-```powershell
-git clone https://github.com/rithertz/TLS-SSL-Handshake-Visualizer.git
-cd TLS-SSL-Handshake-Visualizer
-```
-
----
+Run the backend and frontend in separate terminals.
 
 ## Backend Setup
 
-Open a PowerShell terminal at the repository root.
-
-### 1. Enter the backend
+From the repository root:
 
 ```powershell
 cd backend
-```
-
-### 2. Create the Python virtual environment
-
-```powershell
 python -m venv .venv
-```
-
-### 3. Activate it
-
-```powershell
 .\.venv\Scripts\Activate.ps1
-```
-
-If PowerShell blocks script execution, use the appropriate local execution-policy setting for your environment rather than committing environment-specific workarounds to the repository.
-
-### 4. Install dependencies
-
-```powershell
-pip install -r requirements.txt
-```
-
-### 5. Start the backend
-
-```powershell
+python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
@@ -1091,928 +213,170 @@ The backend runs at:
 http://127.0.0.1:8000
 ```
 
-Keep this terminal running.
-
-### 6. Verify the backend
-
-In a second PowerShell terminal:
+Verify:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-Expected response:
-
-```text
-status
-------
-ok
-```
-
-The interactive FastAPI documentation is also available at:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
----
-
 ## Frontend Setup
 
-Open another PowerShell terminal at the repository root.
-
-### 1. Enter the frontend
+From a second terminal:
 
 ```powershell
 cd frontend
-```
-
-### 2. Install Node dependencies
-
-```powershell
-npm install
-```
-
-For a clean dependency installation in CI, use:
-
-```powershell
 npm ci
-```
-
-### 3. Configure the backend API URL
-
-The frontend reads `VITE_API_BASE_URL` when it is provided. Local development
-defaults to:
-
-```text
-http://127.0.0.1:8000
-```
-
-To make the setting explicit or to use another backend URL, copy the example
-environment file:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Do not commit `.env`; it is local machine configuration.
-
-### 4. Start the Vite development server
-
-```powershell
 npm run dev
 ```
 
-Vite will display the local URL, normally:
+Vite prints the local frontend URL, normally:
 
 ```text
 http://localhost:5173/
 ```
 
-Open that address in your browser.
-
----
-
-## Running the Full Local Application
-
-Two terminals are normally required.
-
-### Terminal 1 - Backend
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
-```
-
-### Terminal 2 - Frontend
-
-```powershell
-cd frontend
-npm run dev
-```
-
-Then open the Vite URL in a browser.
-
-The frontend sends analysis requests to:
+The frontend reads `VITE_API_BASE_URL` when provided. Local development and tests default to:
 
 ```text
-http://127.0.0.1:8000/analyze
+http://127.0.0.1:8000
 ```
 
----
-
-## Backend Tests
-
-From the `backend` directory with the virtual environment activated:
+To make the setting explicit:
 
 ```powershell
-python -m pytest
+Copy-Item .env.example .env
 ```
 
----
+Do not commit `.env`. Production frontend deployments must define `VITE_API_BASE_URL`.
 
-## Frontend Validation
-
-From the `frontend` directory:
-
-```powershell
-npm run test
-npm run lint
-npm run build
-```
-
-CI runs these same frontend validation commands.
-
----
-
-## Frontend Production Build
-
-From the `frontend` directory:
-
-```powershell
-npm run build
-```
-
-This runs the TypeScript build and Vite production build.
-
----
-
-## Useful Development Commands
-
-### Backend
-
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload
-pytest
-```
-
-### Frontend
-
-```powershell
-cd frontend
-npm install
-npm run dev
-npm run test
-npm run lint
-npm run build
-```
-
-### Repository Status
-
-From the repository root:
-
-```powershell
-git status
-```
-
-### Pull Latest Changes
-
-```powershell
-git checkout main
-git pull origin main
-```
-
----
-
-## Troubleshooting
-
-### `npm run build` says `package.json` cannot be found
-
-Make sure the terminal is inside:
-
-```text
-TLS-SSL-Handshake-Visualizerrontend
-```
-
-Then run:
-
-```powershell
-npm run build
-```
-
-### Backend import errors
-
-Make sure the terminal is inside:
-
-```text
-TLS-SSL-Handshake-Visualizerackend
-```
-
-and the virtual environment is activated:
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Then install dependencies:
-
-```powershell
-pip install -r requirements.txt
-```
-
-### Frontend cannot reach the backend
-
-Check that the FastAPI server is running:
-
-```powershell
-Invoke-RestMethod http://127.0.0.1:8000/health
-```
-
-If the health endpoint fails, start the backend before testing the frontend.
-
-### Do not commit local environments
-
-The following should remain local and ignored by Git:
-
-```text
-backend/.venv/
-frontend/node_modules/
-frontend/dist/
-```
-
-# 18. Development Workflow
-
-The repository is intended for parallel team development.
-
-## Before Starting Work
-
-Update your local `main` branch:
-
-```powershell
-git checkout main
-git pull origin main
-```
-
-Create a feature branch:
-
-```powershell
-git checkout -b feature/<short-description>
-```
-
-Example:
-
-```powershell
-git checkout -b feature/tls-analysis
-```
-
----
-
-## Work Within Your Assigned Area
-
-Each member should primarily modify the files belonging to their component.
-
-Do not rewrite another member's component without coordination.
-
-The API contract is the shared boundary between backend and frontend.
-
----
-
-## Before Opening a Pull Request
-
-Check your working tree:
-
-```powershell
-git status
-```
-
-Review changes:
-
-```powershell
-git diff
-```
-
-Run the relevant tests/builds.
+## Testing And Validation
 
 Backend:
 
 ```powershell
 cd backend
-.\.venv\Scripts\Activate.ps1
-pytest
+.\.venv\Scripts\python.exe -m pytest
+```
+
+Or, with an activated environment:
+
+```powershell
+python -m pytest
 ```
 
 Frontend:
 
 ```powershell
 cd frontend
+npm run test
+npm run lint
 npm run build
 ```
 
-Return to the repository root before Git operations if needed:
+CI currently runs backend pytest plus frontend install, tests, lint, and production build.
 
-```powershell
-cd ..
-```
+## Development Workflow
 
----
+Recommended local workflow:
 
-## Commit
+1. Check repository status with `git status`.
+2. Keep work scoped to the relevant module.
+3. Preserve the API contract unless a coordinated contract change is required.
+4. Run the relevant backend/frontend validation commands.
+5. Review the diff before sharing or committing changes.
 
-Use a focused commit:
-
-```powershell
-git add <files>
-git commit -m "feat: add TLS connection analyzer"
-```
-
-Avoid mixing unrelated features, formatting changes, or generated files into the same commit.
-
----
-
-## Push and Pull Request
-
-```powershell
-git push -u origin feature/<short-description>
-```
-
-Then open a Pull Request on GitHub.
-
-Once CI and review requirements are enabled, merge only after the required checks pass.
-
-# 19. Git and Branching Guidelines
-
-## `main`
-
-`main` represents the shared stable project state.
-
-During active team development:
-
-- Do not push experimental work directly to `main`.
-- Use feature branches.
-- Open Pull Requests for integration.
-- Keep `main` buildable.
-
-GitHub branch protection/required CI checks should be enabled once the CI workflow is committed and verified.
-
----
-
-## Feature Branches
-
-Use descriptive names:
+For team branches, use focused branch names such as:
 
 ```text
 feature/tls-analyzer
-feature/certificate-parser
-feature/security-score
-feature/handshake-visualizer
+feature/security-scoring
 feature/dashboard
-test/api-integration
-docs/setup-guide
-fix/certificate-timeout
+feature/handshake-visualizer
+fix/frontend-env
+docs/api-contract
 ```
 
----
+Use focused commits and avoid mixing unrelated code, generated files, dependency changes, and documentation rewrites.
 
-## Commit Convention
+## Engineering Rules
 
-Use concise conventional-style prefixes:
+- Do not fabricate network, TLS, certificate, security, or visualization observations.
+- Use `null` for unavailable scalar values and `[]` for empty lists.
+- Keep TLS/network analysis in the backend.
+- Keep security scoring in the backend.
+- Keep visualizer rendering in the frontend.
+- Keep the API response in snake_case.
+- Do not make frontend components reimplement backend scoring rules.
+- Do not describe representative visualization data as packet capture.
+- Treat certificate subject/issuer comparison as an apparent self-signed check only.
+- Keep `.env`, virtual environments, `node_modules`, and build outputs out of Git.
 
-| Prefix | Purpose |
+## Current MVP Scope
+
+In scope:
+
+- single-target HTTPS analysis;
+- port 443 only;
+- live TLS connection;
+- current certificate metadata;
+- deterministic score and grade;
+- dashboard presentation;
+- conceptual TLS 1.2/TLS 1.3 sequence visualization;
+- local academic demonstration.
+
+Out of scope for the current MVP:
+
+- raw packet capture;
+- browser network tracing;
+- complete certificate-chain validation;
+- revocation checks;
+- CT log checks;
+- HTTP security headers;
+- HSTS analysis;
+- historical scans;
+- database persistence;
+- user accounts;
+- public deployment hardening.
+
+## Future Scope
+
+Potential future packages:
+
+- certificate-chain and trust-path visualization;
+- revocation and CT log checks;
+- HSTS and HTTP security-header analysis;
+- richer TLS configuration checks;
+- browser end-to-end tests;
+- historical result storage;
+- exportable reports;
+- packet-capture-based visualization as a separate architecture;
+- SSRF-safe public deployment mode.
+
+Future features should be added only when the backend can observe or derive the required data honestly.
+
+## Documentation Index
+
+| Question | Document |
 |---|---|
-| `feat:` | New functionality |
-| `fix:` | Bug fix |
-| `test:` | Tests |
-| `docs:` | Documentation |
-| `refactor:` | Code restructuring |
-| `chore:` | Repository/tooling/maintenance |
+| What does the project do? | [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) |
+| How is the system structured? | [docs/architecture/SYSTEM_ARCHITECTURE.md](docs/architecture/SYSTEM_ARCHITECTURE.md) |
+| How do developers work on it? | [docs/architecture/TECH_STACK_AND_DEVELOPMENT_STANDARD.md](docs/architecture/TECH_STACK_AND_DEVELOPMENT_STANDARD.md) |
+| What does `/analyze` return? | [docs/api/API_CONTRACT.md](docs/api/API_CONTRACT.md) |
+| How is the score calculated? | [docs/scoring/SECURITY_SCORING.md](docs/scoring/SECURITY_SCORING.md) |
+| How should the project be demonstrated? | [docs/demo/DEMO_GUIDE.md](docs/demo/DEMO_GUIDE.md) |
 
-Examples:
+## Current Project Status
 
-```text
-feat: implement TLS connection analysis
-feat: add certificate metadata parser
-test: add certificate hostname tests
-fix: handle invalid HTTPS URLs
-docs: update backend setup instructions
-chore: configure CI workflow
-```
+The current baseline contains a working backend, React frontend, shared API types, deterministic scoring, dashboard UI, visualizer integration, tests, and CI checks.
 
----
+Known active gaps:
 
-## What Should Not Be Committed
+- public-deployment SSRF protection;
+- browser-level E2E tests;
+- deeper certificate-chain validation;
+- broader security rules;
+- successful live target analysis depends on the local network environment.
 
-Do not commit:
+The guiding project principle remains:
 
-```text
-backend/.venv/
-frontend/node_modules/
-frontend/dist/
-.env
-credentials
-API keys
-private keys
-machine-specific files
-IDE settings
-```
-
-The repository `.gitignore` handles common generated/local files.
-
-# 20. Testing Strategy
-
-Testing should exist at multiple levels.
-
-## Backend Unit Tests
-
-Test individual components independently.
-
-Examples:
-
-- URL validation
-- certificate parsing
-- hostname matching
-- security rules
-- score calculation
-- grade calculation
-
----
-
-## Backend Integration Tests
-
-Test API behavior.
-
-Example:
-
-```text
-POST /analyze
-       ↓
-analysis service
-       ↓
-structured response
-```
-
-Verify:
-
-- response schema
-- successful analysis
-- invalid URL behavior
-- connection failures
-- TLS failures
-- timeout handling
-
----
-
-## Frontend Tests
-
-Test important UI behavior:
-
-- URL input
-- loading state
-- error state
-- result rendering
-- security score rendering
-- certificate rendering
-- handshake step rendering
-
----
-
-## End-to-End Testing
-
-The integrated application should be tested as:
-
-```text
-Browser
-   ↓
-Frontend
-   ↓
-FastAPI
-   ↓
-TLS analysis
-   ↓
-JSON response
-   ↓
-Frontend rendering
-```
-
-The goal is to catch integration problems that unit tests cannot detect.
-
----
-
-# 21. Engineering Rules
-
-These rules should be followed throughout development.
-
-## 1. Do Not Fabricate Network Data
-
-If a value was not actually observed or reliably derived, do not invent it.
-
-Use:
-
-```text
-null
-```
-
-or:
-
-```text
-[]
-```
-
-as appropriate.
-
----
-
-## 2. Keep Responsibilities Separate
-
-Networking code should not contain UI logic.
-
-Frontend components should not perform direct TLS connections.
-
-Security scoring should not establish network connections.
-
-Visualization should not become the source of truth for observed TLS values.
-
----
-
-## 3. Keep the API Contract Stable
-
-The API contract is the shared interface between team members.
-
-Changes should be discussed before implementation when they affect:
-
-- field names
-- field types
-- response structure
-- semantics
-- required/optional fields
-
----
-
-## 4. Explain Security Findings
-
-A score without an explanation is not sufficient for the educational purpose of this project.
-
-Every meaningful finding should communicate:
-
-```text
-What happened?
-Why does it matter?
-What evidence supports it?
-What should the user do?
-```
-
----
-
-## 5. Handle Failures Explicitly
-
-Network applications fail for many legitimate reasons:
-
-- invalid URL
-- DNS failure
-- connection timeout
-- connection refused
-- TLS handshake failure
-- certificate parsing failure
-- remote server configuration problems
-
-These should become structured, user-understandable errors rather than unhandled crashes.
-
----
-
-## 6. Keep Secrets Out of Git
-
-Never commit:
-
-```text
-.env
-API keys
-passwords
-private keys
-certificates containing private material
-local credentials
-machine-specific secrets
-```
-
-The `.gitignore` file should prevent common local/generated files from being committed.
-
----
-
-## 7. Avoid Overengineering the MVP
-
-The project should first deliver a reliable end-to-end path:
-
-```text
-URL
- → DNS
- → TCP
- → TLS
- → Certificate
- → Score
- → API
- → Dashboard
- → Visualizer
-```
-
-Additional features should not destabilize this core workflow.
-
----
-
-# 22. Team Responsibilities
-
-The project is divided into clear ownership areas.
-
-## rithertz - Network/TLS Analysis + Backend Architecture
-
-Primary responsibility:
-
-- URL validation
-- DNS resolution
-- TCP connection
-- TLS connection/negotiation
-- TLS data extraction
-- Certificate-analysis integration
-- FastAPI API
-- Analysis orchestration
-- Backend error handling
-- GitHub/development workflow support
-
----
-
-## Jayanth-S-18 - TLS Protocol Model + Handshake Visualizer
-
-Primary responsibility:
-
-- TLS 1.2 conceptual handshake model
-- TLS 1.3 conceptual handshake model
-- Interactive visualization
-- Client/server message presentation
-- Visualization data model
-- Visualizer tests
-
----
-
-## Shantanu32145 - Security Analysis + Scoring Engine
-
-Primary responsibility:
-
-- Security rules
-- Security score
-- Security grade
-- Findings
-- Severity classification
-- Recommendations
-- Scoring tests
-- Scoring methodology documentation
-
----
-
-## Dhee5021raj - Integration + E2E Quality
-
-Primary responsibility:
-
-- Frontend/backend integration
-- API contract verification
-- Integration tests
-- End-to-end testing
-- Error-path verification
-- Setup/integration documentation
-- Release/demo readiness
-- Clean-environment verification
-
----
-
-## Sujay B - Frontend Dashboard + Result Presentation
-
-Primary responsibility:
-
-- React dashboard
-- API client
-- Shared frontend types
-- TLS result presentation
-- Certificate result presentation
-- Security result presentation
-- Loading/error states
-- Visualizer entry point
-- Frontend tests
-- UI quality
-
----
-
-# 23. Documentation
-
-Important project documentation is maintained under:
-
-```text
-docs/
-```
-
-## API Contract
-
-```text
-docs/api/API_CONTRACT.md
-```
-
-Defines the frontend/backend interface.
-
----
-
-## System Architecture
-
-```text
-docs/architecture/SYSTEM_ARCHITECTURE.md
-```
-
-Describes the overall system architecture and component boundaries.
-
----
-
-## Technology and Development Standard
-
-```text
-docs/architecture/TECH_STACK_AND_DEVELOPMENT_STANDARD.md
-```
-
-Contains shared development conventions and technical standards.
-
----
-
-## Project Context
-
-```text
-docs/PROJECT_CONTEXT.md
-```
-
-Contains shared project context and decisions useful for team members.
-
----
-
-## Future Documentation
-
-The following directories are reserved for additional documentation:
-
-```text
-docs/demo/
-docs/scoring/
-```
-
-Possible future documents include:
-
-```text
-Demo Guide
-Scoring Methodology
-Test Plan
-Deployment Guide
-Troubleshooting Guide
-```
-
----
-
-# 24. Limitations
-
-The project has several intentional limitations.
-
-## 1. High-Level TLS Inspection
-
-The MVP uses Python's TLS APIs rather than raw packet capture.
-
-Therefore, the application observes negotiated connection information but does not reconstruct every raw TLS record.
-
----
-
-## 2. Security Score Is Educational
-
-The score is a deterministic project-defined assessment.
-
-It should not be interpreted as:
-
-- a formal penetration test,
-- a complete vulnerability assessment,
-- a commercial website security rating,
-- a guarantee that a website is secure.
-
----
-
-## 3. Network Conditions Affect Results
-
-Real-world analysis can be affected by:
-
-- DNS configuration
-- IPv4/IPv6 availability
-- firewalls
-- proxies
-- server configuration
-- network connectivity
-- temporary server failures
-
-A failure to analyze a website does not necessarily mean the website is insecure.
-
----
-
-## 4. Server Configuration Can Change
-
-TLS and certificate properties are observed at analysis time.
-
-A future scan may produce different results because the remote server may change its configuration.
-
----
-
-# 25. Academic Concepts Demonstrated
-
-This project directly connects to several Computer Networks topics.
-
-| Concept | Demonstrated By |
-|---|---|
-| DNS | Hostname resolution |
-| IP addressing | Resolved server IPs |
-| TCP | Connection to port 443 |
-| Client-server architecture | Browser ↔ FastAPI ↔ web server |
-| TLS/SSL | TLS negotiation |
-| HTTPS | Secure HTTP endpoint concept |
-| PKI | Certificate issuer/trust concepts |
-| X.509 | Certificate parsing |
-| Cryptographic negotiation | TLS/cipher information |
-| Protocol messages | Handshake visualizer |
-| Network errors | Timeout/connection/TLS handling |
-| REST | Backend API |
-| JSON | Data exchange |
-| Security analysis | Rule-based scoring |
-
----
-
-# 26. Current Project Status
-
-The shared implementation baseline is established and has been verified locally.
-
-### Repository
-
-- Git repository initialized
-- GitHub remote configured
-- Team collaborators added
-- Shared project structure committed
-- Shared architecture/API documentation committed
-- `.gitignore` configured
-
-### Backend
-
-- FastAPI application created
-- `GET /health` implemented
-- `POST /analyze` implemented
-- HTTPS URL validation implemented
-- DNS resolution implemented
-- TCP connection to port 443 implemented
-- TLS negotiation implemented
-- TLS version extraction implemented
-- Cipher information extraction implemented
-- Peer certificate retrieval implemented
-- X.509 certificate parsing implemented
-- Certificate hostname matching implemented
-- Certificate validity information implemented
-- Basic deterministic security scoring implemented
-- Structured analysis/error response implemented
-- Backend dependencies captured in `backend/requirements.txt`
-
-### Frontend
-
-- React + TypeScript + Vite application established
-- Shared API types implemented
-- API client implemented
-- URL analysis form implemented
-- Initial application-to-API wiring implemented
-- TypeScript/Vite production build verified successfully
-
-### Still In Development
-
-The following remain active implementation areas:
-
-- Full dashboard/result presentation
-- Interactive TLS handshake visualizer
-- Final security scoring methodology/rules
-- Comprehensive backend tests
-- Frontend tests
-- Integration and end-to-end tests
-- CI workflow
-- Protected `main` branch
-- Demo documentation
-- Scoring methodology documentation
-
-The project should be considered an **active MVP implementation**, not a finished product.
-
-# 27. Contributors
-
-**BCSE308L - Computer Networks Project**
-
-| Member | Primary Area |
-|---|---|
-| Jayanth-S-18 | TLS Handshake Visualizer |
-| rithertz | Network/TLS Backend |
-| Shantanu32145 | Security Scoring |
-| Sujay-B37 | Frontend Dashboard |
-| Dhee5021raj | Integration & Testing |
-
----
-
-# 28. License
-
-This project is developed as an academic project for **BCSE308L - Computer Networks**.
-
-A formal open-source license can be added if the team decides to publish the project for broader reuse.
-
----
-
-## Project Principle
-
-> **Observe real network behavior, explain it clearly, and never claim more than the system actually measures.**
-
-The central goal of this project is to bridge the gap between **Computer Networks theory** and a **real HTTPS connection** by allowing users to see what happens when a secure connection is established and why the observed TLS/certificate properties matter.
+> Observe real network behavior, explain it clearly, and never claim more than the system actually measures.

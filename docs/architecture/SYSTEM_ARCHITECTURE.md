@@ -1,183 +1,156 @@
-# TLS/SSL Handshake Visualizer & Website Security Analyzer
-## System Architecture Specification — Review-1 MVP
+# System Architecture
 
-**Course:** Computer Networks (BCSE308L)  
-**Purpose:** Shared architecture specification for all five members and AI coding agents.
+## Purpose
 
----
+This document is the authoritative architecture reference for the TLS/SSL Handshake Visualizer & Website Security Analyzer.
 
-## 1. Architecture Decision
+It explains how the current system is structured, which layer owns each responsibility, where integration boundaries exist, and which technical claims are supported by the implementation.
 
-The project is a **client-server web application** with four logical layers. The current repository contains the initial backend and frontend implementation needed to support the Review-1 MVP.
+## Architecture Decision
+
+The project is a client-server web application with four logical areas:
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│                         FRONTEND                             │
-│                 React + TypeScript + Vite                   │
-│                                                              │
-│ URL Input → Dashboard → Security Results → TLS Visualizer   │
-└──────────────────────────────┬───────────────────────────────┘
-                               │ REST / JSON
-                               ▼
-┌──────────────────────────────────────────────────────────────┐
-│                         BACKEND                              │
-│                    Python + FastAPI                          │
-│                                                              │
-│ Request Validation → Analysis Orchestration → Response      │
-└───────────────┬───────────────────────┬──────────────────────┘
-                │                       │
-                ▼                       ▼
-┌──────────────────────────┐   ┌──────────────────────────────┐
-│     TLS / NETWORK        │   │    SECURITY SCORING          │
-│       ANALYZER           │   │         ENGINE               │
-│                          │   │                              │
-│ DNS / TCP / TLS socket   │   │ Rules → Findings → Score    │
-│ TLS version / cipher     │   │ Grade → Recommendations      │
-│ Certificate extraction   │   │                              │
-└──────────────────────────┘   └──────────────────────────────┘
-                │
-                ▼
-┌──────────────────────────────────────────────────────────────┐
-│                  CERTIFICATE PARSER                          │
-│                Python cryptography library                   │
-└──────────────────────────────────────────────────────────────┘
+Frontend
+  React + TypeScript + Vite
+  URL input, dashboard, error/loading states, visualizer UI
+
+Backend API
+  FastAPI + Pydantic
+  request validation, response modeling, HTTP status behavior
+
+Network/TLS Analysis
+  Python socket + ssl + cryptography
+  DNS, TCP, TLS negotiation, certificate parsing
+
+Security + Visualization Data
+  deterministic scoring rules and representative handshake steps
 ```
 
-The frontend owns presentation and interaction. The backend owns network analysis. The scoring engine interprets collected information. The visualizer presents the TLS protocol sequence.
+The frontend owns presentation and interaction. The backend owns network analysis and derived security data. The API contract is the boundary between them.
 
----
+## Architecture Goals
 
-## 2. Architecture Goals
+The architecture should:
 
-The architecture must:
+1. demonstrate real Computer Networks concepts;
+2. keep backend network logic independent of frontend UI;
+3. keep scoring independent of network transport code;
+4. keep visualization rendering independent of raw TLS implementation details;
+5. make integration predictable through a stable API contract;
+6. preserve a clean path for testing;
+7. allow future extensions without rewriting the MVP;
+8. avoid unsupported technical claims.
 
-1. Produce a working MVP within the Review-1 timeframe.
-2. Demonstrate real Computer Networks concepts.
-3. Keep each member's code independently understandable.
-4. Make integration predictable.
-5. Allow AI agents to work without changing unrelated modules.
-6. Keep backend independent of frontend UI.
-7. Keep scoring independent of network communication.
-8. Keep the visualizer independent of backend implementation.
-9. Make unit, module, and end-to-end testing possible.
-10. Leave a clean path for post-review extensions.
+## Complete Runtime Flow
 
----
-
-## 3. Complete Runtime Flow
-
-For:
+For a target such as:
 
 ```text
 https://example.com
 ```
 
-the application should follow:
+the runtime flow is:
 
 ```text
 User enters URL
-      ↓
-React collects URL
-      ↓
-      ↓
-POST /analyze
-      ↓
-FastAPI validates request
-      ↓
-Extract hostname
-      ↓
-Resolve hostname
-      ↓
-Open TCP connection to port 443
-      ↓
-Establish TLS session
-      ↓
-Read negotiated TLS version/cipher
-      ↓
-Obtain peer certificate
-      ↓
-Parse certificate metadata
-      ↓
-Run security scoring rules
-      ↓
-Build unified JSON response
-      ↓
-React renders dashboard
-      ↓
-React renders TLS handshake visualization
+      |
+      v
+React captures URL
+      |
+      v
+frontend/src/services/api.ts sends POST /analyze
+      |
+      v
+FastAPI route receives AnalyzeRequest
+      |
+      v
+URL validator normalizes and validates target
+      |
+      v
+TLS analyzer resolves DNS and opens TCP connection to port 443
+      |
+      v
+Python ssl performs TLS negotiation
+      |
+      v
+Backend reads negotiated TLS version, cipher, and peer certificate
+      |
+      v
+Certificate parser extracts X.509 metadata
+      |
+      v
+Security scorer evaluates deterministic rules
+      |
+      v
+Visualization builder creates representative handshake steps
+      |
+      v
+AnalyzeResponse is returned as JSON
+      |
+      v
+React renders dashboard and visualizer
 ```
 
 This is the central project story.
 
----
+## Networking Stack
 
-## 4. Networking Stack Being Demonstrated
+The project demonstrates how HTTPS is layered:
 
 ```text
 Application
-    │
-    │ HTTPS
-    ▼
+    |
+    | HTTPS
+    v
 Security
-    │
-    │ TLS
-    ▼
+    |
+    | TLS
+    v
 Transport
-    │
-    │ TCP
-    ▼
+    |
+    | TCP
+    v
 Internet
-    │
-    │ IP
-    ▼
+    |
+    | IP
+    v
 Network Interface
 ```
 
-DNS is used before the connection to resolve the hostname.
+DNS happens before the TCP/TLS connection so the backend can resolve the hostname to IP addresses.
 
 Important distinction:
 
 ```text
-DNS resolution
-    ≠
-TCP three-way handshake
-    ≠
-TLS handshake
+DNS resolution != TCP three-way handshake != TLS handshake
 ```
 
-The operating system performs TCP mechanics; our application uses networking APIs to establish the connection and inspect the resulting TLS session.
+The operating system and Python libraries perform the low-level TCP mechanics. The application establishes a TCP connection and inspects the resulting TLS session through supported APIs.
 
----
+## DNS
 
-## 5. DNS
-
-Given:
+Given a hostname:
 
 ```text
 example.com
 ```
 
-the backend needs an address:
+the backend resolves it to one or more IP addresses:
 
 ```text
-Hostname
-   ↓
-DNS resolution
-   ↓
-IP address(es)
+hostname -> DNS resolution -> IP address list
 ```
 
-Use operating-system/Python facilities. Do not build a custom DNS server.
+The resolved IPs are exposed in the `network.resolved_ips` response field when analysis succeeds.
 
-Resolved IP information may be exposed as diagnostic data if reliably available.
+The project does not implement a custom DNS resolver. It uses operating-system/Python facilities through the TLS analysis layer.
 
----
+## TCP
 
-## 6. TCP
+HTTPS normally uses TCP port 443.
 
-Traditional HTTPS uses TCP as the transport.
-
-Conceptually:
+Conceptual TCP setup:
 
 ```text
 Client                         Server
@@ -187,42 +160,44 @@ SYN ---------------------------->
 ACK ---------------------------->
 ```
 
-The MVP does **not** manually construct TCP packets. The purpose is to demonstrate where TLS sits in the stack.
+The MVP does not manually construct TCP packets. It uses Python networking APIs to connect to the target and applies timeouts so slow or unreachable targets do not hang the app indefinitely.
 
----
+## TLS Connection
 
-## 7. TLS Connection
-
-After TCP is available:
+After TCP connectivity exists:
 
 ```text
 TCP socket
-    ↓
+    |
+    v
 TLS wrapper
-    ↓
+    |
+    v
 TLS negotiation
-    ↓
-Secure TLS session
+    |
+    v
+secure TLS session
 ```
 
-The current backend obtains:
+The backend currently obtains:
 
 - negotiated TLS version;
 - negotiated cipher suite;
+- cipher bit information where available;
 - peer certificate;
-- certificate-related information;
-- controlled connection errors.
+- certificate metadata;
+- controlled failure state when the connection cannot complete.
 
-Do not implement cryptographic primitives manually.
+The project does not implement cryptographic primitives manually.
 
----
+## TLS 1.2 And TLS 1.3 Visualization
 
-## 8. TLS 1.2 and TLS 1.3 Visualization
+The visualizer supports representative TLS 1.2 and TLS 1.3 sequences.
 
-A simplified TLS 1.2 sequence:
+Simplified TLS 1.2 sequence:
 
 ```text
-CLIENT                                  SERVER
+Client                                  Server
 
 ClientHello  ------------------------>
 
@@ -232,19 +207,17 @@ ClientHello  ------------------------>
               <---------------------- ServerHelloDone
 
 ClientKeyExchange -------------------->
-
 ChangeCipherSpec --------------------->
-
 Finished ----------------------------->
 
               <---------------------- ChangeCipherSpec
               <---------------------- Finished
 ```
 
-A simplified TLS 1.3 sequence:
+Simplified TLS 1.3 sequence:
 
 ```text
-CLIENT                                  SERVER
+Client                                  Server
 
 ClientHello  ------------------------>
 
@@ -257,15 +230,13 @@ ClientHello  ------------------------>
 Finished     ------------------------->
 ```
 
-`*` means the exact sequence depends on the negotiated configuration.
+`*` means exact messages depend on negotiated configuration.
 
----
-
-## 9. Critical Visualization Limitation
+## Visualization Limitation
 
 The MVP uses high-level TLS APIs.
 
-Therefore we can reliably obtain:
+It can reliably obtain:
 
 - negotiated TLS version;
 - negotiated cipher;
@@ -273,525 +244,486 @@ Therefore we can reliably obtain:
 - certificate metadata;
 - connection success/failure.
 
-We should **not claim** that the MVP captures every raw TLS packet or every byte of every handshake message.
+It does not capture every raw TLS packet or every byte of every handshake message.
 
-The correct description is:
-
-> **An interactive visualization of the TLS handshake protocol sequence, enriched with real parameters obtained from the target server.**
-
-If packet capture is added later, it becomes an advanced extension.
-
----
-
-## 10. Backend Logical Architecture
-
-Current structure:
+Correct description:
 
 ```text
-backend/
-└── app/
-    ├── main.py
-    ├── api/
-    │   └── routes/
-    │       └── analyze.py
-    ├── models/
-    │   └── schemas.py
-    ├── tls/
-    │   ├── connection.py
-    │   └── analyzer.py
-    ├── certificate/
-    │   └── parser.py
-    ├── security/
-    │   ├── scorer.py
-    │   └── rules.py
-    └── services/
-        ├── analysis_service.py
-        └── url_validator.py
+An interactive visualization of the TLS protocol sequence, enriched with real values obtained from the target server.
 ```
 
-Additional modules such as `security/recommendations.py` may be introduced as implementation expands. Names may change, but responsibilities should remain separated.
-
----
-
-## 11. Backend Request Flow
+Incorrect description:
 
 ```text
-HTTP Request
-    ↓
+A packet-level TLS capture or packet sniffer.
+```
+
+If raw packet capture is added later, it should be treated as a separate architecture and security boundary.
+
+## Backend Logical Architecture
+
+Current backend structure:
+
+```text
+backend/app/
+├── main.py
+├── api/
+│   └── routes/
+│       ├── analyze.py
+│       └── health.py
+├── models/
+│   └── schemas.py
+├── security/
+│   ├── recommendations.py
+│   ├── rules.py
+│   └── scorer.py
+├── services/
+│   ├── analysis_service.py
+│   └── url_validator.py
+├── tls/
+│   ├── analyzer.py
+│   └── connection.py
+└── visualization/
+    ├── builder.py
+    └── protocol_steps.py
+```
+
+## Backend Request Flow
+
+```text
+HTTP request
+    |
+    v
 API route
-    ↓
-Request validation
-    ↓
-Analysis service
-    ↓
-TLS analyzer
-    ↓
-Certificate parser
-    ↓
-Security scorer
-    ↓
-Response model
-    ↓
-JSON
+    |
+    v
+Pydantic request model
+    |
+    v
+analysis service
+    |
+    +-- URL validator
+    +-- TLS analyzer
+    +-- security scorer
+    +-- visualization builder
+    |
+    v
+Pydantic response model
+    |
+    v
+JSON response
 ```
 
-The current API route is intentionally thin. TLS and scoring logic are delegated to the analysis service and lower-level modules.
+Routes should stay thin. They should not contain TLS, certificate, scoring, or visualizer logic.
 
----
+## API Layer
 
-## 12. Analysis Service
+Main files:
 
-The orchestration layer should conceptually expose:
-
-```text
-analyze_target(url)
-```
-
-and coordinate:
-
-```text
-URL
- ↓
-TLS/network analyzer
- ↓
-certificate parser
- ↓
-security scorer
- ↓
-unified result
-```
-
-It must not contain frontend presentation logic.
-
----
-
-## 13. TLS Analyzer
+- `backend/app/api/routes/analyze.py`
+- `backend/app/api/routes/health.py`
+- `backend/app/models/schemas.py`
 
 Responsibilities:
 
-1. Receive hostname/port.
-2. Resolve/connect.
-3. Establish TLS.
-4. Obtain negotiated TLS version.
-5. Obtain negotiated cipher.
-6. Obtain peer certificate.
-7. Return structured analysis data.
-8. Raise controlled errors.
+- expose `GET /health`;
+- expose `POST /analyze`;
+- map validation errors to HTTP 400;
+- return `AnalyzeResponse` objects;
+- prevent internal exceptions from leaking as stack traces.
+
+## Analysis Service
+
+Main file:
+
+```text
+backend/app/services/analysis_service.py
+```
+
+Responsibilities:
+
+- coordinate validation, TLS analysis, scoring, and visualization;
+- build the success response envelope;
+- convert expected analysis failures into structured `FAILED` responses;
+- ensure failure responses do not contain fabricated TLS, certificate, security, or success-like data.
+
+The analysis service is an orchestration layer. It should not contain frontend presentation logic.
+
+## TLS Analyzer
+
+Main files:
+
+- `backend/app/tls/analyzer.py`
+- `backend/app/tls/connection.py`
+
+Responsibilities:
+
+1. receive a hostname;
+2. resolve/connect;
+3. establish TLS;
+4. obtain negotiated TLS version;
+5. obtain negotiated cipher information;
+6. obtain peer certificate;
+7. return structured analysis data;
+8. raise controlled errors for service-level handling.
 
 It must not calculate the final security score.
 
----
+## Certificate Parser
 
-## 14. Certificate Parser
+Current certificate parsing support is part of the TLS/certificate analysis path.
 
 Responsibilities:
 
-```text
-DER/PEM certificate
-       ↓
-X.509 object
-       ↓
-Structured metadata
-```
+- parse X.509 certificate data;
+- extract subject;
+- extract issuer;
+- extract validity period;
+- extract Subject Alternative Names;
+- extract serial number;
+- derive hostname-match status;
+- derive apparent self-signed status from subject/issuer metadata.
 
-Target fields:
+Self-signed detection is not full certificate-chain validation.
 
-- Subject;
-- Issuer;
-- Serial number;
-- Valid-from;
-- Valid-until;
-- Subject Alternative Names;
-- useful public-key metadata where available;
-- self-signed indication where reliably determinable;
-- hostname-match result where implemented.
+## Security Engine
 
-The parser must be independently testable.
+Main files:
 
----
-
-## 15. Security Engine
+- `backend/app/security/rules.py`
+- `backend/app/security/scorer.py`
+- `backend/app/security/recommendations.py`
 
 Conceptual pipeline:
 
 ```text
-TLS + Certificate Data
-          ↓
-      Rule Engine
-          ↓
-    ┌─────┴─────┐
-    ↓           ↓
-Findings      Score
-    │           │
-    └─────┬─────┘
-          ↓
-        Grade
-          ↓
-Recommendations
+TLS + certificate data
+          |
+          v
+      rule engine
+          |
+          +-- findings
+          +-- recommendations
+          +-- score
+          +-- grade
 ```
 
-It must be deterministic:
+The security engine must be deterministic:
 
-> identical input → identical output.
+```text
+same input -> same findings, score, grade, and recommendations
+```
 
 It must not open network connections.
 
----
+The backend is the single source of truth for scoring. The frontend renders the score; it does not recalculate it.
 
-## 16. Frontend Architecture
+## Visualization Data Builder
 
-Current foundation:
+Main files:
 
-```text
-frontend/
-└── src/
-    ├── components/
-    │   └── AnalyzeForm.tsx
-    ├── visualizer/
-    ├── services/
-    │   └── api.ts
-    ├── types/
-    │   └── analysis.ts
-    ├── App.tsx
-    └── main.tsx
-```
+- `backend/app/visualization/builder.py`
+- `backend/app/visualization/protocol_steps.py`
 
-The dashboard and visualizer components will be added by their respective owners.
+Responsibilities:
 
----
+- choose a representative TLS sequence based on negotiated protocol version;
+- attach observed or defensibly derived values into `actual_data`;
+- return `VisualizationInfo` compatible with the API contract.
 
-## 17. Frontend State
+Visualization data should never fabricate raw packet content.
 
-At minimum:
+## Frontend Architecture
+
+Current frontend structure:
 
 ```text
-IDLE → LOADING → SUCCESS
-                 ↘ ERROR
+frontend/src/
+├── App.tsx
+├── components/
+│   ├── AnalysisSummary.tsx
+│   ├── CertificateDetails.tsx
+│   ├── EmptyState.tsx
+│   ├── ErrorMessage.tsx
+│   ├── FindingsList.tsx
+│   ├── HandshakeVisualizerEntry.tsx
+│   ├── LoadingState.tsx
+│   ├── Recommendations.tsx
+│   ├── SecurityScore.tsx
+│   ├── TlsDetails.tsx
+│   └── UrlAnalyzer.tsx
+├── services/
+│   └── api.ts
+├── styles/
+│   └── dashboard.css
+├── tests/
+├── types/
+│   └── analysis.ts
+└── visualizer/
 ```
 
-Example:
+## Frontend State
+
+The application follows a simple UI state machine:
 
 ```text
-IDLE:
-Enter HTTPS URL
-
-LOADING:
-Analyzing TLS configuration...
-
-SUCCESS:
-Show results
-
-ERROR:
-Unable to analyze target
+idle -> loading -> success
+              \-> error
 ```
 
----
+State is managed in `frontend/src/App.tsx`.
 
-## 18. Dashboard
+Core frontend state:
 
-The dashboard should display:
+- current analysis status;
+- current target URL;
+- latest `AnalyzeResponse`;
+- current error message/code.
 
-### Target
-- URL
-- hostname
+## Dashboard Architecture
 
-### TLS
-- TLS version
-- cipher suite
+The dashboard renders backend response sections through focused components:
 
-### Certificate
-- issuer
-- subject
-- validity
-- expiry
-- SAN
+| Component | Data |
+|---|---|
+| `UrlAnalyzer` | user target input |
+| `AnalysisSummary` | target and network data |
+| `TlsDetails` | TLS version and cipher data |
+| `CertificateDetails` | certificate metadata |
+| `SecurityScore` | score and grade |
+| `FindingsList` | security findings |
+| `Recommendations` | recommendations |
+| `HandshakeVisualizerEntry` | visualization summary/entry |
+| `ErrorMessage` | failure state |
+| `LoadingState` | in-progress state |
+| `EmptyState` | initial state |
 
-### Security
-- score
-- grade
-- findings
-- recommendations
+The dashboard should not perform direct TLS operations or calculate security findings.
 
-### Visualization
-- Client ↔ Server TLS handshake
+## Visualizer Architecture
 
----
-
-## 19. Visualizer Architecture
-
-The visualizer must be reusable and receive data rather than directly calling the API.
+The visualizer receives data rather than calling the API directly.
 
 Correct:
 
 ```text
 API service
-   ↓
-analysis state
-   ↓
-HandshakeVisualizer props
-   ↓
-animation
+   |
+   v
+App state
+   |
+   v
+HandshakeVisualizerEntry / visualizer props
 ```
 
 Avoid:
 
 ```text
-HandshakeVisualizer
-   ↓
-fetch("/analyze")
+Visualizer component -> fetch("/analyze")
 ```
 
-The visualizer should render the correct TLS 1.2 or TLS 1.3 sequence based on the analysis result.
+The visualizer renders the representative protocol sequence selected by backend-provided visualization data.
 
----
+## API Client Boundary
 
-## 20. Security Score Ownership
-
-The frontend must **not recalculate** the security score.
-
-Correct:
+Main file:
 
 ```text
-Backend/security engine
-        ↓
-score + grade + findings
-        ↓
-frontend
-        ↓
-render
+frontend/src/services/api.ts
 ```
 
-This gives one source of truth for scoring.
+Responsibilities:
 
----
+- read `VITE_API_BASE_URL` when provided;
+- use local dev/test default `http://127.0.0.1:8000`;
+- require explicit base URL in production builds/runtime;
+- call `POST /analyze`;
+- return `AnalyzeResponse`;
+- convert transport/backend HTTP failures into frontend failure responses without fake success data.
 
-## 21. Error Architecture
+## Shared Type Boundary
 
-Possible categories:
+Main file:
 
 ```text
-INVALID_URL
-NON_HTTPS_URL
-DNS_FAILURE
+frontend/src/types/analysis.ts
+```
+
+The TypeScript types mirror:
+
+```text
+backend/app/models/schemas.py
+docs/api/API_CONTRACT.md
+```
+
+Any intentional API change should update all three layers.
+
+## Security Score Ownership
+
+The backend owns:
+
+- rule evaluation;
+- penalties;
+- score;
+- grade;
+- finding statuses;
+- severities;
+- recommendations.
+
+The frontend owns:
+
+- rendering those values;
+- formatting;
+- error/loading display.
+
+There must be one scoring source of truth.
+
+## Error Architecture
+
+The current implementation distinguishes:
+
+- invalid user input;
+- expected target-analysis failure;
+- unexpected backend failure;
+- frontend/backend transport failure.
+
+HTTP behavior:
+
+- invalid URL/input: HTTP 400;
+- expected target analysis failure: HTTP 200 with `analysis_status: "FAILED"`;
+- unexpected route-level failure: HTTP 500;
+- frontend fetch failure: local `FAILED` response with `CONNECTION_FAILED`.
+
+Current backend analysis failure codes include:
+
+```text
 CONNECTION_TIMEOUT
-CONNECTION_REFUSED
-TLS_HANDSHAKE_FAILURE
-CERTIFICATE_ERROR
+NETWORK_ERROR
 ANALYSIS_ERROR
-INTERNAL_ERROR
 ```
 
-Return controlled API errors, not Python stack traces.
+The frontend may also handle local or legacy display codes for user-friendly hints.
 
-Example:
+Controlled errors should not expose Python stack traces, internal file paths, secrets, or raw exception details.
 
-```json
-{
-  "error": {
-    "code": "CONNECTION_TIMEOUT",
-    "message": "The target server did not respond within the allowed time."
-  }
-}
-```
-
-The exact final schema will be frozen in the API-contract stage.
-
----
-
-## 22. Integration Boundaries
+## Integration Boundaries
 
 Major boundaries:
 
 ```text
-Frontend ←→ Backend API
-Backend  ←→ TLS analyzer
-Backend  ←→ Certificate parser
-Backend  ←→ Security engine
-Backend result → Visualizer
+Frontend <-> Backend API
+Backend route <-> analysis service
+analysis service <-> TLS analyzer
+analysis service <-> security scorer
+analysis service <-> visualization builder
+backend schemas <-> frontend types
 ```
 
-Each boundary must have a documented contract.
+Each boundary should have a documented contract or type.
 
----
+## Single Source Of Truth
 
-## 23. Single Source of Truth
+Authoritative sources:
 
-The backend analysis response is canonical for:
+| Concern | Source |
+|---|---|
+| API shape | `docs/api/API_CONTRACT.md` |
+| Backend response model | `backend/app/models/schemas.py` |
+| Frontend API types | `frontend/src/types/analysis.ts` |
+| Scoring behavior | `backend/app/security/scorer.py` and `docs/scoring/SECURITY_SCORING.md` |
+| Visualization semantics | `backend/app/visualization/` and this architecture document |
 
-```text
-TLS version
-Cipher
-Certificate data
-Security score
-Findings
-Recommendations
-```
+Do not duplicate backend rules in frontend UI code.
 
-Do not duplicate these rules in React.
+## Security And SSRF Boundary
 
----
+The backend connects to user-supplied destinations. This is an important security boundary.
 
-## 24. Vertical-Slice Strategy
+Current MVP controls:
 
-Build the first working path quickly:
+- HTTPS scheme required;
+- credentials rejected;
+- explicit port must be `443`;
+- hostname required;
+- network timeouts;
+- structured failure behavior.
+
+Before public deployment, add:
+
+- private/loopback/link-local/multicast destination blocking after DNS resolution;
+- redirect policy decisions;
+- request rate limiting;
+- response-size and timeout controls;
+- safe logging;
+- deployment-specific CORS restrictions.
+
+The application should never become a public arbitrary internal-network probe.
+
+## Vertical Slice Strategy
+
+The system should prioritize the working path:
 
 ```text
 URL input
-   ↓
+   |
+   v
 POST /analyze
-   ↓
+   |
+   v
 real TLS connection
-   ↓
-certificate
-   ↓
-basic score
-   ↓
-JSON
-   ↓
-dashboard
+   |
+   v
+certificate metadata
+   |
+   v
+score/findings
+   |
+   v
+JSON response
+   |
+   v
+dashboard + visualizer
 ```
 
-Then improve the visualizer and advanced checks.
+Future modules should extend this path without destabilizing it.
 
-This is safer than completing isolated modules and integrating only at the end.
-
----
-
-## 25. Review-1 MVP
-
-### P0 — Must Work
-
-```text
-HTTPS URL input
-Backend API
-TLS connection
-TLS version
-Cipher
-Certificate
-Basic score
-Dashboard
-Handshake visualization
-```
-
-### P1 — Strongly Recommended
-
-```text
-SAN
-Expiry warning
-Findings
-Recommendations
-Loading/error states
-Unit tests
-Responsive UI
-GitHub documentation
-```
-
-### P2 — Optional
-
-```text
-Certificate-chain visualization
-HSTS
-HTTP security headers
-PDF export
-Historical scans
-Advanced animations
-Packet-level visualization
-```
-
----
-
-## 26. Security/SSRF Boundary
-
-Because the backend connects to a user-supplied target, input validation matters.
-
-For the MVP:
-
-- accept HTTPS;
-- use hostname;
-- default to port 443;
-- impose timeouts;
-- avoid exposing arbitrary host:port scanning.
-
-If publicly deployed later, internal/reserved destinations should be blocked to reduce SSRF risk.
-
----
-
-## 27. Architectural Rules for AI Agents
-
-AI agents must:
-
-- follow this architecture;
-- avoid changing unrelated modules;
-- not invent API fields;
-- not silently rename existing fields;
-- not move scoring into the frontend;
-- not move TLS networking into React;
-- not make the visualizer call the API directly;
-- add tests for non-trivial logic;
-- report assumptions and limitations.
-
-If an interface must change:
-
-```text
-Identify required change
-        ↓
-Update shared contract
-        ↓
-Update producer
-        ↓
-Update consumers
-        ↓
-Update tests
-```
-
----
-
-## 28. Definition of Done
-
-A feature is not done because:
-
-> "It runs on my laptop."
+## Definition Of Done
 
 A feature is done when:
 
-- it works;
-- it follows the architecture;
-- it has appropriate error handling;
-- another member can consume it;
-- it is committed to GitHub;
-- relevant tests exist;
-- the responsible member understands it.
+- it follows the documented ownership boundaries;
+- it preserves or intentionally updates the API contract;
+- it has appropriate failure behavior;
+- it does not fabricate unavailable data;
+- relevant backend/frontend tests pass;
+- documentation is updated when behavior changes;
+- another team member can consume it without reading private notes.
 
----
-
-## 29. Architecture Summary
+## Architecture Summary
 
 ```text
-             USER
-              │
-              ▼
-       ┌──────────────┐
-       │ React Client │
-       └──────┬───────┘
-              │ JSON
-              ▼
-       ┌──────────────┐
-       │   FastAPI    │
-       └──────┬───────┘
-              │
-      ┌───────┼────────┐
-      │       │        │
-      ▼       ▼        ▼
-    TLS    Certificate Score
- Analyzer    Parser    Engine
-      │       │        │
-      └───────┼────────┘
-              ▼
-        Unified Result
-              │
-              ▼
-       React Dashboard
-          + Visualizer
+             User
+              |
+              v
+       React frontend
+              |
+              | JSON
+              v
+          FastAPI
+              |
+      +-------+-------+
+      |       |       |
+      v       v       v
+    TLS   Certificate Security
+ analyzer   parser     scorer
+      |       |       |
+      +-------+-------+
+              |
+              v
+       Unified response
+              |
+              v
+ Dashboard + visualizer
 ```
 
-This architecture is the baseline for all subsequent task assignments and coding.
+This architecture is the baseline for current development and documentation.

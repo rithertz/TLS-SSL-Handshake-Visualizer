@@ -59,7 +59,7 @@ def analyze_url(url: str) -> dict:
             },
         }
 
-    except OSError as error:
+    except OSError:
         return {
             "analysis_status": "FAILED",
             "target": {
@@ -74,11 +74,11 @@ def analyze_url(url: str) -> dict:
             "visualization": EMPTY_VISUALIZATION,
             "error": {
                 "code": "NETWORK_ERROR",
-                "message": str(error),
+                "message": "The target could not be reached over the network.",
             },
         }
 
-    except Exception as error:
+    except Exception:
         return {
             "analysis_status": "FAILED",
             "target": {
@@ -93,6 +93,6 @@ def analyze_url(url: str) -> dict:
             "visualization": EMPTY_VISUALIZATION,
             "error": {
                 "code": "ANALYSIS_ERROR",
-                "message": str(error),
+                "message": "The target analysis could not be completed.",
             },
         }
