@@ -3,15 +3,18 @@ import type {
   AnalyzeResponse,
 } from "../types/analysis";
 
+const DEFAULT_LOCAL_API_BASE_URL = "http://127.0.0.1:8000";
+
 const _rawApiBase = import.meta.env.VITE_API_BASE_URL;
-if (!_rawApiBase) {
+const API_BASE_URL: string = _rawApiBase || DEFAULT_LOCAL_API_BASE_URL;
+
+if (!_rawApiBase && import.meta.env.PROD) {
   throw new Error(
     "[config] VITE_API_BASE_URL is not set. " +
-    "Create a .env file (see .env.example) and define VITE_API_BASE_URL " +
-    "before starting the dev server or building the app."
+    "Define it before building the production frontend. " +
+    "For local development, see .env.example."
   );
 }
-const API_BASE_URL: string = _rawApiBase;
 
 /**
  * Extracts the hostname from a URL string. Falls back to the raw string if

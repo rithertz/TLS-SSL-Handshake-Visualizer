@@ -225,8 +225,8 @@ def score_security(
             "status": "PASS",
             "severity": "INFO",
             "title": rule_self["title"],
-            "explanation": "The certificate is not self-signed.",
-            "evidence": issuer_info if issuer_info else "Trusted CA chain",
+            "explanation": "The certificate subject and issuer differ, so it does not appear to be self-signed.",
+            "evidence": issuer_info if issuer_info else "Issuer metadata unavailable",
         })
     elif self_signed is True:
         score -= 25
