@@ -3,38 +3,40 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import ErrorMessage from "../components/ErrorMessage";
 
 describe("ErrorHandling Component", () => {
-  it("renders structured error message and error code badge", () => {
+  it("renders structured error message and error code badge for NETWORK_ERROR", () => {
+    // NETWORK_ERROR is the code the backend returns for DNS resolution failures
     render(
       <ErrorMessage
         error="DNS resolution failed for hostname non-existent.invalid"
-        code="DNS_RESOLUTION_FAILED"
+        code="NETWORK_ERROR"
         targetUrl="https://non-existent.invalid"
       />
     );
 
     expect(screen.getByTestId("error-message")).toBeInTheDocument();
-    expect(screen.getByTestId("error-code")).toHaveTextContent("DNS_RESOLUTION_FAILED");
+    expect(screen.getByTestId("error-code")).toHaveTextContent("NETWORK_ERROR");
     expect(screen.getByTestId("error-text")).toHaveTextContent("DNS resolution failed");
     expect(screen.getByText(/non-existent.invalid/i)).toBeInTheDocument();
   });
 
-  it("renders user-friendly troubleshooting hint based on error code", () => {
+  it("renders user-friendly troubleshooting hint for CONNECTION_FAILED", () => {
+    // CONNECTION_FAILED is the code the backend/api layer returns for connection failures
     render(
       <ErrorMessage
         error="Connection reset during handshake"
-        code="TLS_HANDSHAKE_FAILED"
+        code="CONNECTION_FAILED"
       />
     );
 
-    expect(screen.getByText(/The remote host failed or rejected the TLS handshake/i)).toBeInTheDocument();
+    expect(screen.getByText(/The connection timed out while reaching the host/i)).toBeInTheDocument();
   });
 
   it("handles retry button callback when clicked", () => {
     const handleRetry = vi.fn();
     render(
       <ErrorMessage
-        error="Timeout reaching endpoint"
-        code="CONNECTION_TIMEOUT"
+        error="Unable to connect to the backend analysis server"
+        code="CONNECTION_FAILED"
         onRetry={handleRetry}
       />
     );
