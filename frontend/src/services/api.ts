@@ -3,7 +3,15 @@ import type {
   AnalyzeResponse,
 } from "../types/analysis";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const _rawApiBase = import.meta.env.VITE_API_BASE_URL;
+if (!_rawApiBase) {
+  throw new Error(
+    "[config] VITE_API_BASE_URL is not set. " +
+    "Create a .env file (see .env.example) and define VITE_API_BASE_URL " +
+    "before starting the dev server or building the app."
+  );
+}
+const API_BASE_URL: string = _rawApiBase;
 
 /**
  * Extracts the hostname from a URL string. Falls back to the raw string if
@@ -74,7 +82,7 @@ export async function analyzeWebsite(url: string): Promise<AnalyzeResponse> {
       visualization: null,
       error: {
         code: "CONNECTION_FAILED",
-        message: `Unable to connect to the backend analysis server at ${API_BASE_URL}. Please ensure the FastAPI server is running.`,
+        message: `Unable to connect to the backend analysis server. Please ensure the FastAPI server is running and VITE_API_BASE_URL is correctly configured.`,
       },
     };
   }
