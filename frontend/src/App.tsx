@@ -1,12 +1,5 @@
-<<<<<<< HEAD
 import React, { useState } from "react";
 import type { AnalyzeResponse, AnalysisState } from "./types/analysis";
-=======
-import { useState } from "react";
-
-import AnalyzeForm from "./components/AnalyzeForm";
-import HandshakeVisualizer from "./visualizer/HandshakeVisualizer";
->>>>>>> origin/main
 import { analyzeWebsite } from "./services/api";
 
 import UrlAnalyzer from "./components/UrlAnalyzer";
@@ -99,7 +92,6 @@ export const App: React.FC = () => {
 
         {status === "loading" && <LoadingState url={currentUrl} />}
 
-<<<<<<< HEAD
         {status === "error" && (
           <ErrorMessage
             error={errorDetails.message}
@@ -147,25 +139,6 @@ export const App: React.FC = () => {
         Computer Networks Project • TLS/SSL Handshake Visualizer &amp; Security Dashboard
       </footer>
     </div>
-=======
-      {analysis && (
-        <section>
-          <h2>Analysis Complete</h2>
-          <p>
-            Analyzed: {analysis.target?.hostname}
-          </p>
-          <p>
-            TLS Version: {analysis.tls?.version ?? "Unavailable"}
-          </p>
-
-          <HandshakeVisualizer
-            visualization={analysis.visualization}
-            tlsVersion={analysis.tls?.version}
-          />
-        </section>
-      )}
-    </main>
->>>>>>> origin/main
   );
 };
 
