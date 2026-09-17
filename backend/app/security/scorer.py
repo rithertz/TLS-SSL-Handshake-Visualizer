@@ -225,7 +225,7 @@ def score_security(
             "status": "PASS",
             "severity": "INFO",
             "title": rule_self["title"],
-            "explanation": "The certificate is signed by a recognized Certificate Authority (not self-signed).",
+            "explanation": "The certificate is not self-signed.",
             "evidence": issuer_info if issuer_info else "Trusted CA chain",
         })
     elif self_signed is True:
@@ -245,7 +245,7 @@ def score_security(
     # ---------------------------------------------------------
     rule_ident = RULES["CERT_IDENTITY"]
     subject_info = cert_data.get("subject")
-    if subject_info or issuer_info:
+    if subject_info and issuer_info:
         findings.append({
             "rule_id": "CERT_IDENTITY",
             "status": "PASS",
