@@ -1,18 +1,28 @@
+"""Security Rules Registry for TLS/SSL Security Analyzer."""
+
 RULES = {
     "TLS_VERSION": {
-        "title": "TLS version",
+        "title": "TLS Protocol Version",
         "description": "Checks whether the negotiated TLS version is modern and secure.",
     },
     "CERT_EXPIRY": {
-        "title": "Certificate expiry",
-        "description": "Checks whether the server certificate is currently valid.",
+        "title": "Certificate Expiry & Validity",
+        "description": "Checks whether the server certificate is currently within its validity period.",
     },
     "HOSTNAME_MATCH": {
-        "title": "Certificate hostname",
-        "description": "Checks whether the certificate matches the requested hostname.",
+        "title": "Certificate Hostname Match",
+        "description": "Checks whether the certificate Subject Alternative Names (SAN) match the requested hostname.",
+    },
+    "EXPIRY_PROXIMITY": {
+        "title": "Certificate Expiry Proximity",
+        "description": "Checks whether a valid certificate is approaching its expiration date.",
     },
     "SELF_SIGNED": {
-        "title": "Self-signed certificate",
-        "description": "Checks whether the certificate is self-signed.",
+        "title": "Self-Signed Certificate Check",
+        "description": "Checks whether the certificate is issued by a trusted CA or is self-signed.",
+    },
+    "CERT_IDENTITY": {
+        "title": "Certificate Metadata Identity",
+        "description": "Checks whether the certificate contains complete Subject and Issuer identity metadata.",
     },
 }
