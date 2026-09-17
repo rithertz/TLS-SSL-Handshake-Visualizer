@@ -12,11 +12,14 @@ export const HandshakeVisualizerEntry: React.FC<HandshakeVisualizerEntryProps> =
 }) => {
   const [expandedStep, setExpandedStep] = useState<number | null>(null);
 
-  const protocolVersion = visualization?.protocol_version ?? "TLS 1.3";
+  // protocol_version comes from the backend's negotiated TLS result.
+  // Do not fall back to an invented version — show an explicit unavailable
+  // state so the UI never contradicts the actual analysis result.
+  const protocolVersion = visualization?.protocol_version ?? null;
   const steps = visualization?.steps ?? [];
 
   const handleLaunch = () => {
-    if (onLaunchVisualizer) {
+    if (onLaunchVisualizer && protocolVersion !== null) {
       onLaunchVisualizer(protocolVersion, steps);
     }
   };
@@ -40,10 +43,10 @@ export const HandshakeVisualizerEntry: React.FC<HandshakeVisualizerEntryProps> =
 
         <div className="header-badges">
           <span
-            className="badge badge-info font-mono"
+            className={`badge font-mono ${protocolVersion ? "badge-info" : "badge-neutral"}`}
             data-testid="protocol-version-badge"
           >
-            Dynamic Mode: {protocolVersion}
+            {protocolVersion ? `Dynamic Mode: ${protocolVersion}` : "Protocol Unavailable"}
           </span>
           <button
             type="button"

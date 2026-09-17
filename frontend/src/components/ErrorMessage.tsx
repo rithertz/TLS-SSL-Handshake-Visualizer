@@ -27,19 +27,25 @@ export const ErrorMessage: React.FC<ErrorMessageProps> = ({
     errorCode = error.code || errorCode;
   }
 
-  // User-friendly troubleshooting hints mapped per error code
+  // User-friendly troubleshooting hints mapped per error code.
+  // Covers both backend-emitted codes (NETWORK_ERROR, CONNECTION_FAILED) and
+  // any UI-level codes surfaced by the application layer.
   const getTroubleshootingHint = (codeStr: string): string => {
     switch (codeStr?.toUpperCase()) {
       case "INVALID_URL":
         return "Check that the URL is correctly formatted and starts with https:// (e.g., https://example.com).";
       case "DNS_RESOLUTION_FAILED":
+      case "NETWORK_ERROR":
         return "Verify that the hostname exists and is registered in public DNS servers.";
       case "TLS_HANDSHAKE_FAILED":
         return "The remote host failed or rejected the TLS handshake. Check port 443 and supported cipher suites.";
       case "CONNECTION_TIMEOUT":
+      case "CONNECTION_FAILED":
         return "The connection timed out while reaching the host. Check network connectivity or firewall rules.";
       case "CERTIFICATE_EXPIRED":
         return "The server certificate has expired or is invalid for the domain.";
+      case "SERVER_ERROR":
+        return "The analysis server returned an unexpected error. Please try again later.";
       default:
         return "Please verify the target URL, check internet connectivity, and try again.";
     }

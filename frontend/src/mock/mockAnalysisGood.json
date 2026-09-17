@@ -1,56 +1,130 @@
 {
-  "target": "https://example.com",
-  "timestamp": "2026-09-15T23:43:15Z",
-  "security_score": 95,
-  "grade": "A+",
-  "tls_version": "TLS 1.3",
-  "cipher_suite": "TLS_AES_256_GCM_SHA384",
-  "connection_time_ms": 42,
+  "analysis_status": "SUCCESS",
+  "target": {
+    "url": "https://example.com",
+    "hostname": "example.com",
+    "port": 443
+  },
+  "network": {
+    "resolved_ips": ["93.184.215.14", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"]
+  },
+  "tls": {
+    "version": "TLS 1.3",
+    "cipher": {
+      "name": "TLS_AES_256_GCM_SHA384",
+      "protocol": "TLSv1.3",
+      "bits": 256
+    }
+  },
   "certificate": {
     "subject": "CN=example.com, O=Internet Corporation for Assigned Names and Numbers",
     "issuer": "DigiCert TLS RSA SHA256 2020 CA1",
     "valid_from": "2026-01-15T00:00:00Z",
-    "valid_to": "2027-01-16T23:59:59Z",
-    "signature_algorithm": "sha256WithRSAEncryption",
-    "key_size": 2048,
-    "days_until_expiration": 123,
-    "is_valid": true,
-    "san": ["example.com", "www.example.com"]
+    "valid_until": "2027-01-16T23:59:59Z",
+    "san": ["example.com", "www.example.com"],
+    "serial_number": "0A:3F:81:9B:12:44:C9:88:55",
+    "hostname_match": true,
+    "self_signed": false
   },
-  "handshake_steps": [
-    {
-      "step": 1,
-      "name": "Client Hello",
-      "status": "passed",
-      "duration_ms": 12,
-      "details": "Client sent TLS 1.3 ClientHello with supported ciphers and key_share extension."
-    },
-    {
-      "step": 2,
-      "name": "Server Hello",
-      "status": "passed",
-      "duration_ms": 14,
-      "details": "Server selected TLS_AES_256_GCM_SHA384 and completed key exchange agreement."
-    },
-    {
-      "step": 3,
-      "name": "Certificate Verification",
-      "status": "passed",
-      "duration_ms": 10,
-      "details": "Server X.509 certificate chain verified against trusted Root CA store."
-    },
-    {
-      "step": 4,
-      "name": "Finished (Session Established)",
-      "status": "passed",
-      "duration_ms": 6,
-      "details": "Encrypted handshake completed. Symmetric AES-256 session keys active."
-    }
-  ],
-  "security_checks": {
-    "hsts_enabled": true,
-    "pfs_supported": true,
-    "ocsp_stapling": true,
-    "vulnerabilities": []
-  }
+  "security": {
+    "score": 95,
+    "grade": "A",
+    "findings": [
+      {
+        "rule_id": "TLS-MODERN-VERSION",
+        "status": "PASS",
+        "severity": "INFO",
+        "title": "Modern TLS Version Negotiated",
+        "explanation": "The connection negotiated TLS 1.3, providing optimal cryptographic performance and security.",
+        "evidence": "Negotiated Protocol: TLS 1.3"
+      },
+      {
+        "rule_id": "CERT-VALIDITY",
+        "status": "PASS",
+        "severity": "INFO",
+        "title": "Certificate Valid & CA Trusted",
+        "explanation": "The X.509 certificate is valid, within its validity window, and issued by a trusted public Certificate Authority.",
+        "evidence": "Issuer: DigiCert TLS RSA SHA256 2020 CA1"
+      },
+      {
+        "rule_id": "CERT-HOSTNAME-MATCH",
+        "status": "PASS",
+        "severity": "INFO",
+        "title": "Certificate Hostname Match",
+        "explanation": "The requested target hostname matches the Subject Alternative Name (SAN) list in the certificate.",
+        "evidence": "Requested: example.com, SANs: [example.com, www.example.com]"
+      },
+      {
+        "rule_id": "CIPHER-AEAD-STRONG",
+        "status": "PASS",
+        "severity": "INFO",
+        "title": "Strong AEAD Cipher Suite",
+        "explanation": "Uses TLS_AES_256_GCM_SHA384 which provides authenticated encryption with associated data (AEAD).",
+        "evidence": "Bits: 256"
+      },
+      {
+        "rule_id": "HSTS-HEADER-MISSING",
+        "status": "WARN",
+        "severity": "LOW",
+        "title": "HSTS Header Advisory",
+        "explanation": "HTTP Strict Transport Security header recommendation.",
+        "evidence": "max-age policy not enforced at socket level."
+      }
+    ],
+    "recommendations": [
+      {
+        "rule_id": "HSTS-HEADER-MISSING",
+        "text": "Configure Strict-Transport-Security header with max-age=31536000 and includeSubDomains on all HTTPS responses."
+      }
+    ]
+  },
+  "visualization": {
+    "protocol_version": "TLS 1.3",
+    "steps": [
+      {
+        "id": "step-1",
+        "sequence": 1,
+        "sender": "client",
+        "receiver": "server",
+        "message": "ClientHello",
+        "title": "Client Hello",
+        "description": "Client initiates handshake offering TLS 1.3, key shares, and supported cipher suites.",
+        "purpose": "Negotiate version, key exchange parameters, and client random.",
+        "actual_data": {
+          "client_version": "TLS 1.3",
+          "supported_ciphers": ["TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"],
+          "key_share": "X25519"
+        }
+      },
+      {
+        "id": "step-2",
+        "sequence": 2,
+        "sender": "server",
+        "receiver": "client",
+        "message": "ServerHello",
+        "title": "Server Hello",
+        "description": "Server selects cipher suite and returns server key share for Diffie-Hellman exchange.",
+        "purpose": "Establish shared secret key and confirm cipher selection.",
+        "actual_data": {
+          "selected_cipher": "TLS_AES_256_GCM_SHA384",
+          "server_key_share": "X25519"
+        }
+      },
+      {
+        "id": "step-3",
+        "sequence": 3,
+        "sender": "server",
+        "receiver": "client",
+        "message": "Certificate & Finished",
+        "title": "Server Encrypted Extensions & Certificate",
+        "description": "Server sends encrypted X.509 certificate chain and Finished verification payload.",
+        "purpose": "Authenticate server identity and finalize handshake.",
+        "actual_data": {
+          "certificate_issuer": "DigiCert",
+          "handshake_status": "COMPLETED"
+        }
+      }
+    ]
+  },
+  "error": null
 }
