@@ -19,7 +19,7 @@ RULES = {
     },
     "SELF_SIGNED": {
         "title": "Self-Signed Certificate Check",
-        "description": "Checks whether the certificate is issued by a trusted CA or is self-signed.",
+        "description": "Checks whether the certificate appears to be self-signed based on subject and issuer metadata.",
     },
     "CERT_IDENTITY": {
         "title": "Certificate Metadata Identity",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { AnalyzeResponse } from "../types/analysis";
 
 import SecurityScore from "../components/SecurityScore";
@@ -111,7 +111,9 @@ describe("Dashboard Components Integration", () => {
   it("renders TlsDetails negotiated version and cipher suite", () => {
     render(<TlsDetails tls={mockAnalysisData.tls} />);
 
-    expect(screen.getByText("TLS 1.3")).toBeInTheDocument();
+    const tlsDetails = screen.getByTestId("tls-details");
+    const tlsVersion = within(tlsDetails).getByText("TLS Version").nextElementSibling;
+    expect(tlsVersion).toHaveTextContent("TLS 1.3");
     expect(screen.getByText("TLS_AES_256_GCM_SHA384")).toBeInTheDocument();
     expect(screen.getByText("256 bits")).toBeInTheDocument();
   });
@@ -121,7 +123,7 @@ describe("Dashboard Components Integration", () => {
 
     expect(screen.getByText("DigiCert TLS RSA SHA256 2020 CA1")).toBeInTheDocument();
     expect(screen.getByTestId("hostname-match-badge")).toHaveTextContent("Hostname Match");
-    expect(screen.getByTestId("self-signed-badge")).toHaveTextContent("CA Signed");
+    expect(screen.getByTestId("self-signed-badge")).toHaveTextContent("Not Self-Signed");
     expect(screen.getByText("www.example.com")).toBeInTheDocument();
   });
 

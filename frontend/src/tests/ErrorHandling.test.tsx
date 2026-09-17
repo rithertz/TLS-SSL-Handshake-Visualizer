@@ -16,7 +16,7 @@ describe("ErrorHandling Component", () => {
     expect(screen.getByTestId("error-message")).toBeInTheDocument();
     expect(screen.getByTestId("error-code")).toHaveTextContent("NETWORK_ERROR");
     expect(screen.getByTestId("error-text")).toHaveTextContent("DNS resolution failed");
-    expect(screen.getByText(/non-existent.invalid/i)).toBeInTheDocument();
+    expect(screen.getByTestId("error-text")).toHaveTextContent("non-existent.invalid");
   });
 
   it("renders user-friendly troubleshooting hint for CONNECTION_FAILED", () => {

@@ -35,7 +35,7 @@ export const CertificateDetails: React.FC<CertificateDetailsProps> = ({ certific
               className={`badge ${certificate.self_signed ? "badge-warn" : "badge-neutral"}`}
               data-testid="self-signed-badge"
             >
-              {certificate.self_signed ? "Self-Signed" : "CA Signed"}
+              {certificate.self_signed ? "Self-Signed" : "Not Self-Signed"}
             </span>
           )}
         </div>

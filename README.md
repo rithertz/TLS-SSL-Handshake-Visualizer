@@ -871,6 +871,12 @@ The visualizer is a conceptual representation of the TLS handshake.
 
 It should support the major differences between TLS versions.
 
+The application uses backend-provided visualization data from the `/analyze`
+response. Observed values such as SNI hostname, negotiated TLS version, cipher
+suite, and certificate metadata may be attached to the relevant conceptual
+steps. The MVP does not capture raw packets and must not present the
+visualization as a packet transcript.
+
 ## TLS 1.2
 
 The visualization should communicate the larger sequence of messages involved in a typical TLS 1.2 handshake.
@@ -1133,7 +1139,25 @@ For a clean dependency installation in CI, use:
 npm ci
 ```
 
-### 3. Start the Vite development server
+### 3. Configure the backend API URL
+
+The frontend reads `VITE_API_BASE_URL` when it is provided. Local development
+defaults to:
+
+```text
+http://127.0.0.1:8000
+```
+
+To make the setting explicit or to use another backend URL, copy the example
+environment file:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Do not commit `.env`; it is local machine configuration.
+
+### 4. Start the Vite development server
 
 ```powershell
 npm run dev
@@ -1183,8 +1207,22 @@ http://127.0.0.1:8000/analyze
 From the `backend` directory with the virtual environment activated:
 
 ```powershell
-pytest
+python -m pytest
 ```
+
+---
+
+## Frontend Validation
+
+From the `frontend` directory:
+
+```powershell
+npm run test
+npm run lint
+npm run build
+```
+
+CI runs these same frontend validation commands.
 
 ---
 
@@ -1217,6 +1255,8 @@ pytest
 cd frontend
 npm install
 npm run dev
+npm run test
+npm run lint
 npm run build
 ```
 
