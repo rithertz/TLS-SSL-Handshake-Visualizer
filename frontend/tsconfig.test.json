@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
-    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
@@ -22,8 +22,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  // Tests are type-checked by tsconfig.test.json (vitest/globals + jest-dom types).
-  // Excluding here prevents them being checked under the vite/client type environment.
-  "exclude": ["src/tests"]
+  "include": ["src/tests"]
 }
