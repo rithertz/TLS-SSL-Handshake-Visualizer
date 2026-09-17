@@ -235,7 +235,7 @@ def score_security(
             "status": "WARN",
             "severity": "HIGH",
             "title": rule_self["title"],
-            "explanation": "The certificate is self-signed and does not chain to a public Root CA.",
+            "explanation": "The certificate subject and issuer match, so it appears to be self-signed.",
             "evidence": issuer_info if issuer_info else "Self-signed certificate",
         })
         recommendations.append(build_recommendation("SELF_SIGNED", "SELF_SIGNED_WARN"))

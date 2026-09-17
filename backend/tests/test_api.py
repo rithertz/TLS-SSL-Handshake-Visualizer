@@ -236,9 +236,7 @@ def test_analyze_endpoint_handles_unexpected_analysis_error(monkeypatch):
     body = response.json()
 
     assert "detail" in body
-    assert body["detail"] == (
-        "Unable to analyze the target: Unexpected analysis failure"
-    )
+    assert body["detail"] == "Unable to analyze the target."
 
 
 def test_analyze_endpoint_matches_api_contract(monkeypatch):
@@ -465,7 +463,9 @@ def test_analyze_endpoint_handles_dns_failure(monkeypatch):
     assert body["security"] is None
     assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
-    assert "Name or service not known" in body["error"]["message"]
+    assert body["error"]["message"] == (
+        "The target could not be reached over the network."
+    )
 
 
 def test_analyze_endpoint_handles_unreachable_domain(monkeypatch):
@@ -495,7 +495,9 @@ def test_analyze_endpoint_handles_unreachable_domain(monkeypatch):
     assert body["security"] is None
     assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
-    assert "Connection refused" in body["error"]["message"]
+    assert body["error"]["message"] == (
+        "The target could not be reached over the network."
+    )
 
 
 def test_analyze_endpoint_handles_tls_handshake_failure(monkeypatch):
@@ -525,7 +527,9 @@ def test_analyze_endpoint_handles_tls_handshake_failure(monkeypatch):
     assert body["security"] is None
     assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
-    assert "TLS handshake failed" in body["error"]["message"]
+    assert body["error"]["message"] == (
+        "The target could not be reached over the network."
+    )
 
 
 def test_analyze_endpoint_handles_certificate_failure(monkeypatch):
@@ -557,7 +561,9 @@ def test_analyze_endpoint_handles_certificate_failure(monkeypatch):
     assert body["security"] is None
     assert body["visualization"] == EMPTY_VISUALIZATION
     assert body["error"]["code"] == "NETWORK_ERROR"
-    assert "certificate verify failed" in body["error"]["message"]
+    assert body["error"]["message"] == (
+        "The target could not be reached over the network."
+    )
 
 
 def test_analyze_endpoint_handles_timeout(monkeypatch):

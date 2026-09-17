@@ -123,7 +123,9 @@ def test_analyze_url_handles_network_error(monkeypatch):
     assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "NETWORK_ERROR"
-    assert result["error"]["message"] == "Connection refused"
+    assert result["error"]["message"] == (
+        "The target could not be reached over the network."
+    )
 
 
 def test_analyze_url_handles_unexpected_analysis_error(monkeypatch):
@@ -152,7 +154,9 @@ def test_analyze_url_handles_unexpected_analysis_error(monkeypatch):
     assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "ANALYSIS_ERROR"
-    assert result["error"]["message"] == "Unexpected analysis failure"
+    assert result["error"]["message"] == (
+        "The target analysis could not be completed."
+    )
 
 
 def test_analyze_url_handles_dns_resolution_error(monkeypatch):
@@ -182,4 +186,6 @@ def test_analyze_url_handles_dns_resolution_error(monkeypatch):
     assert result["visualization"] == EMPTY_VISUALIZATION
 
     assert result["error"]["code"] == "NETWORK_ERROR"
-    assert "Name or service not known" in result["error"]["message"]
+    assert result["error"]["message"] == (
+        "The target could not be reached over the network."
+    )

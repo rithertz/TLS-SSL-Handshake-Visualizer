@@ -36,7 +36,7 @@ export const HandshakeVisualizerEntry: React.FC<HandshakeVisualizerEntryProps> =
           <div>
             <h2 className="card-title">Handshake Visualizer Integration</h2>
             <p className="card-subtitle">
-              Interactive packet-level handshake trace for negotiated session
+              Interactive protocol sequence for the negotiated session
             </p>
           </div>
         </div>
@@ -61,7 +61,7 @@ export const HandshakeVisualizerEntry: React.FC<HandshakeVisualizerEntryProps> =
 
       <div className="handshake-steps-container">
         <h3 className="section-subtitle font-mono">
-          Handshake Step Sequence ({steps.length} Messages Captured)
+          Handshake Step Sequence ({steps.length} Steps)
         </h3>
 
         {steps.length === 0 ? (

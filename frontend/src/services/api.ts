@@ -11,7 +11,7 @@ const API_BASE_URL: string = _rawApiBase || DEFAULT_LOCAL_API_BASE_URL;
 if (!_rawApiBase && import.meta.env.PROD) {
   throw new Error(
     "[config] VITE_API_BASE_URL is not set. " +
-    "Define it before building the production frontend. " +
+    "Define it before deploying the production frontend. " +
     "For local development, see .env.example."
   );
 }
