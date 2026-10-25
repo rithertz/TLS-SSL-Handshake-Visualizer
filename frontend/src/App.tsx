@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import type { AnalyzeResponse, AnalysisState } from "./types/analysis";
 import { analyzeWebsite } from "./services/api";
+<<<<<<< HEAD
 
 import UrlAnalyzer from "./components/UrlAnalyzer";
 import EmptyState from "./components/EmptyState";
@@ -19,6 +20,11 @@ import "./styles/dashboard.css";
 export const App: React.FC = () => {
   const [status, setStatus] = useState<AnalysisState>("idle");
   const [currentUrl, setCurrentUrl] = useState<string>("");
+=======
+import type { AnalyzeResponse } from "./types/analysis";
+import ScoreBreakdown from "./components/ScoreBreakdown";
+function App() {
+>>>>>>> 7e52a49 (Add in-depth 'Why this score?' breakdown to the frontend)
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [errorDetails, setErrorDetails] = useState<{ message: string; code: string }>({
     message: "",
@@ -92,6 +98,7 @@ export const App: React.FC = () => {
 
         {status === "loading" && <LoadingState url={currentUrl} />}
 
+<<<<<<< HEAD
         {status === "error" && (
           <ErrorMessage
             error={errorDetails.message}
@@ -139,6 +146,22 @@ export const App: React.FC = () => {
         Computer Networks Project • TLS/SSL Handshake Visualizer &amp; Security Dashboard
       </footer>
     </div>
+=======
+      {analysis && (
+        <section>
+          <h2>Analysis Complete</h2>
+          <p>
+            Analyzed: {analysis.target?.hostname}
+          </p>
+          <p>
+            TLS Version: {analysis.tls?.version ?? "Unavailable"}
+          </p>
+        </section>
+      )}
+
+      {analysis && <ScoreBreakdown security={analysis.security} />}
+    </main>
+>>>>>>> 7e52a49 (Add in-depth 'Why this score?' breakdown to the frontend)
   );
 };
 
