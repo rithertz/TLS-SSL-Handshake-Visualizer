@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import type { AnalyzeResponse, AnalysisState } from "./types/analysis";
 import { analyzeWebsite } from "./services/api";
-<<<<<<< HEAD
 
 import UrlAnalyzer from "./components/UrlAnalyzer";
 import EmptyState from "./components/EmptyState";
@@ -11,6 +10,7 @@ import AnalysisSummary from "./components/AnalysisSummary";
 import TlsDetails from "./components/TlsDetails";
 import CertificateDetails from "./components/CertificateDetails";
 import SecurityScore from "./components/SecurityScore";
+import ScoreBreakdown from "./components/ScoreBreakdown";
 import FindingsList from "./components/FindingsList";
 import Recommendations from "./components/Recommendations";
 import HandshakeVisualizerEntry from "./components/HandshakeVisualizerEntry";
@@ -20,11 +20,6 @@ import "./styles/dashboard.css";
 export const App: React.FC = () => {
   const [status, setStatus] = useState<AnalysisState>("idle");
   const [currentUrl, setCurrentUrl] = useState<string>("");
-=======
-import type { AnalyzeResponse } from "./types/analysis";
-import ScoreBreakdown from "./components/ScoreBreakdown";
-function App() {
->>>>>>> 7e52a49 (Add in-depth 'Why this score?' breakdown to the frontend)
   const [analysis, setAnalysis] = useState<AnalyzeResponse | null>(null);
   const [errorDetails, setErrorDetails] = useState<{ message: string; code: string }>({
     message: "",
@@ -98,7 +93,6 @@ function App() {
 
         {status === "loading" && <LoadingState url={currentUrl} />}
 
-<<<<<<< HEAD
         {status === "error" && (
           <ErrorMessage
             error={errorDetails.message}
@@ -119,6 +113,9 @@ function App() {
                 status={analysis.analysis_status}
               />
             </div>
+
+            {/* In-depth explanation of why the score came out as it did */}
+            <ScoreBreakdown security={analysis.security} />
 
             {/* Middle Row: TLS Protocol & Certificate Details */}
             <div className="dashboard-grid-2col">
@@ -146,22 +143,6 @@ function App() {
         Computer Networks Project • TLS/SSL Handshake Visualizer &amp; Security Dashboard
       </footer>
     </div>
-=======
-      {analysis && (
-        <section>
-          <h2>Analysis Complete</h2>
-          <p>
-            Analyzed: {analysis.target?.hostname}
-          </p>
-          <p>
-            TLS Version: {analysis.tls?.version ?? "Unavailable"}
-          </p>
-        </section>
-      )}
-
-      {analysis && <ScoreBreakdown security={analysis.security} />}
-    </main>
->>>>>>> 7e52a49 (Add in-depth 'Why this score?' breakdown to the frontend)
   );
 };
 
