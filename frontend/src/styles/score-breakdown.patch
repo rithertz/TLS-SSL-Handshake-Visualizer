@@ -1,0 +1,1526 @@
+diff --git a/frontend/src/App.tsx b/frontend/src/App.tsx
+index 26fc88e..6b7d69e 100644
+--- a/frontend/src/App.tsx
++++ b/frontend/src/App.tsx
+@@ -10,6 +10,7 @@ import AnalysisSummary from "./components/AnalysisSummary";
+ import TlsDetails from "./components/TlsDetails";
+ import CertificateDetails from "./components/CertificateDetails";
+ import SecurityScore from "./components/SecurityScore";
++import ScoreBreakdown from "./components/ScoreBreakdown";
+ import FindingsList from "./components/FindingsList";
+ import Recommendations from "./components/Recommendations";
+ import HandshakeVisualizerEntry from "./components/HandshakeVisualizerEntry";
+@@ -113,6 +114,9 @@ export const App: React.FC = () => {
+               />
+             </div>
+ 
++            {/* In-depth explanation of why the score came out as it did */}
++            <ScoreBreakdown security={analysis.security} />
++
+             {/* Middle Row: TLS Protocol & Certificate Details */}
+             <div className="dashboard-grid-2col">
+               <TlsDetails tls={analysis.tls} />
+diff --git a/frontend/src/components/ScoreBreakdown.css b/frontend/src/components/ScoreBreakdown.css
+new file mode 100644
+index 0000000..d316bf8
+--- /dev/null
++++ b/frontend/src/components/ScoreBreakdown.css
+@@ -0,0 +1,643 @@
++/* ==========================================================================
++   Score Breakdown ("Why this score?") — scoped styles
++   All selectors are prefixed with .sb- so nothing else on the page is affected.
++   Uses the design tokens already defined in styles/dashboard.css.
++   ========================================================================== */
++
++.sb-card {
++  gap: 1.5rem;
++}
++
++.sb-header-result {
++  display: flex;
++  align-items: center;
++  gap: 0.6rem;
++  flex-shrink: 0;
++}
++
++.sb-mini-grade {
++  width: 38px;
++  height: 38px;
++  border-radius: 10px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  font-size: 1.3rem;
++  font-weight: 800;
++}
++
++.sb-mini-score {
++  font-size: 1.35rem;
++  font-weight: 700;
++  color: var(--text-main);
++}
++
++.sb-mini-total {
++  font-size: 0.8rem;
++  color: var(--text-dim);
++  font-weight: 500;
++}
++
++.sb-body {
++  display: flex;
++  flex-direction: column;
++  gap: 2rem;
++}
++
++/* ---- Sections ---- */
++
++.sb-section {
++  display: flex;
++  flex-direction: column;
++  gap: 0.9rem;
++  padding-bottom: 1.75rem;
++  border-bottom: 1px dashed var(--border-color);
++}
++
++.sb-section:last-child {
++  border-bottom: none;
++  padding-bottom: 0;
++}
++
++.sb-section-title {
++  display: flex;
++  align-items: center;
++  gap: 0.6rem;
++  font-size: 1rem;
++  font-weight: 600;
++  color: var(--text-main);
++}
++
++.sb-step {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  width: 1.6rem;
++  height: 1.6rem;
++  border-radius: 50%;
++  background: rgba(56, 189, 248, 0.14);
++  border: 1px solid rgba(56, 189, 248, 0.4);
++  color: var(--color-accent);
++  font-size: 0.8rem;
++  font-weight: 700;
++  flex-shrink: 0;
++}
++
++.sb-lead {
++  font-size: 0.88rem;
++  color: var(--text-muted);
++  line-height: 1.65;
++}
++
++.sb-lead strong {
++  color: var(--text-main);
++}
++
++.sb-headline {
++  font-size: 1rem;
++  line-height: 1.65;
++  color: var(--text-main);
++  background: var(--bg-inner);
++  border: 1px solid var(--border-color);
++  border-left: 3px solid var(--color-accent);
++  border-radius: 10px;
++  padding: 0.9rem 1.1rem;
++}
++
++.sb-note {
++  font-size: 0.8rem;
++  color: var(--text-dim);
++  line-height: 1.6;
++  border-left: 2px solid var(--border-color);
++  padding-left: 0.75rem;
++}
++
++/* ---- Proportional bar ---- */
++
++.sb-bar {
++  display: flex;
++  flex-direction: column;
++  gap: 0.4rem;
++}
++
++.sb-bar-track {
++  display: flex;
++  width: 100%;
++  height: 34px;
++  border-radius: 8px;
++  overflow: hidden;
++  background: var(--bg-inner);
++  border: 1px solid var(--border-color);
++}
++
++.sb-bar-kept {
++  display: flex;
++  align-items: center;
++  justify-content: flex-end;
++  padding-right: 0.5rem;
++  background: linear-gradient(90deg, rgba(16, 185, 129, 0.55), rgba(16, 185, 129, 0.9));
++  min-width: 0;
++}
++
++.sb-bar-kept-label,
++.sb-bar-lost-label {
++  font-size: 0.75rem;
++  font-weight: 700;
++  color: #06121a;
++  white-space: nowrap;
++  overflow: hidden;
++}
++
++.sb-bar-lost {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  min-width: 0;
++  border-left: 1px solid rgba(0, 0, 0, 0.35);
++}
++
++.sb-bar-scale {
++  display: flex;
++  justify-content: space-between;
++  font-size: 0.68rem;
++  color: var(--text-dim);
++}
++
++.sb-bar-legend {
++  list-style: none;
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.4rem 1rem;
++  font-size: 0.75rem;
++  color: var(--text-muted);
++}
++
++.sb-bar-legend li {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.4rem;
++}
++
++.sb-swatch {
++  width: 10px;
++  height: 10px;
++  border-radius: 3px;
++  display: inline-block;
++}
++
++/* ---- Tables ---- */
++
++.sb-table-wrap {
++  overflow-x: auto;
++  border: 1px solid var(--border-color);
++  border-radius: 10px;
++  background: var(--bg-inner);
++}
++
++.sb-table {
++  width: 100%;
++  border-collapse: collapse;
++  font-size: 0.84rem;
++}
++
++.sb-table th {
++  text-align: left;
++  font-size: 0.7rem;
++  font-weight: 600;
++  text-transform: uppercase;
++  letter-spacing: 0.06em;
++  color: var(--text-dim);
++  padding: 0.65rem 0.85rem;
++  border-bottom: 1px solid var(--border-color);
++  white-space: nowrap;
++}
++
++.sb-table td {
++  padding: 0.7rem 0.85rem;
++  border-bottom: 1px solid rgba(35, 40, 56, 0.6);
++  vertical-align: top;
++  color: var(--text-muted);
++}
++
++.sb-table tbody tr:last-child td {
++  border-bottom: none;
++}
++
++.sb-num {
++  text-align: right !important;
++  white-space: nowrap;
++}
++
++.sb-neg {
++  color: var(--color-fail) !important;
++  font-weight: 700;
++}
++
++.sb-pos {
++  color: var(--color-pass) !important;
++  font-weight: 700;
++}
++
++.sb-row-title {
++  margin-top: 0.3rem;
++  color: var(--text-main);
++  font-size: 0.82rem;
++}
++
++.sb-badges {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 0.35rem;
++}
++
++.sb-evidence {
++  font-size: 0.76rem;
++  word-break: break-word;
++  max-width: 240px;
++}
++
++.sb-row-start td,
++.sb-row-total td,
++.sb-row-final td {
++  background: rgba(255, 255, 255, 0.02);
++  color: var(--text-main);
++  font-weight: 600;
++}
++
++.sb-row-total td {
++  border-top: 1px solid var(--border-color);
++}
++
++.sb-row-final td {
++  border-top: 1px solid var(--border-color);
++  border-bottom: none;
++}
++
++.sb-final {
++  font-size: 1.15rem;
++  color: var(--color-accent) !important;
++}
++
++.sb-row-penalty td:first-child {
++  box-shadow: inset 3px 0 0 var(--color-fail);
++}
++
++.sb-row-neutral td:first-child {
++  box-shadow: inset 3px 0 0 var(--color-pass);
++}
++
++/* ---- Reconciliation ---- */
++
++.sb-recon {
++  display: flex;
++  gap: 0.75rem;
++  align-items: flex-start;
++  font-size: 0.84rem;
++  line-height: 1.6;
++  border-radius: 10px;
++  padding: 0.8rem 1rem;
++  color: var(--text-muted);
++}
++
++.sb-recon strong {
++  color: var(--text-main);
++}
++
++.sb-recon-ok {
++  background: var(--bg-pass);
++  border: 1px solid var(--border-pass);
++}
++
++.sb-recon-warn {
++  background: var(--bg-info);
++  border: 1px solid var(--border-info);
++}
++
++.sb-recon-icon {
++  font-weight: 800;
++  font-size: 1rem;
++  line-height: 1.4;
++}
++
++.sb-recon-ok .sb-recon-icon {
++  color: var(--color-pass);
++}
++
++.sb-recon-warn .sb-recon-icon {
++  color: var(--color-info);
++}
++
++/* ---- Grade scale ---- */
++
++.sb-grades {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
++  gap: 0.6rem;
++}
++
++.sb-grade-cell {
++  position: relative;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  gap: 0.25rem;
++  text-align: center;
++  background: var(--bg-inner);
++  border: 1px solid var(--border-color);
++  border-radius: 10px;
++  padding: 0.8rem 0.5rem 0.7rem;
++  opacity: 0.6;
++}
++
++.sb-grade-current {
++  opacity: 1;
++  border-color: var(--color-accent);
++  box-shadow: 0 0 0 1px var(--color-accent), 0 8px 24px -12px rgba(56, 189, 248, 0.5);
++}
++
++.sb-grade-letter {
++  width: 36px;
++  height: 36px;
++  border-radius: 9px;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  font-size: 1.2rem;
++  font-weight: 800;
++}
++
++.sb-grade-range {
++  font-size: 0.8rem;
++  color: var(--text-main);
++}
++
++.sb-grade-meaning {
++  font-size: 0.72rem;
++  color: var(--text-dim);
++}
++
++.sb-grade-you {
++  margin-top: 0.15rem;
++  font-size: 0.62rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  color: var(--color-accent);
++}
++
++.sb-grade-pill {
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  width: 26px;
++  height: 26px;
++  border-radius: 7px;
++  font-weight: 800;
++  font-size: 0.9rem;
++}
++
++.sb-grade-move {
++  margin-left: 0.6rem;
++  font-size: 0.74rem;
++  color: var(--color-pass);
++}
++
++/* ---- Rule reference ---- */
++
++.sb-rules {
++  display: flex;
++  flex-direction: column;
++  gap: 0.6rem;
++}
++
++.sb-rule {
++  background: var(--bg-inner);
++  border: 1px solid var(--border-color);
++  border-radius: 10px;
++  overflow: hidden;
++}
++
++.sb-rule-hit {
++  border-color: var(--border-fail);
++}
++
++.sb-rule-summary {
++  display: flex;
++  align-items: center;
++  flex-wrap: wrap;
++  gap: 0.6rem 0.9rem;
++  padding: 0.75rem 1rem;
++  cursor: pointer;
++  list-style: none;
++}
++
++.sb-rule-summary::-webkit-details-marker {
++  display: none;
++}
++
++.sb-rule-summary::before {
++  content: "▸";
++  color: var(--text-dim);
++  font-size: 0.8rem;
++  transition: transform 0.15s ease;
++}
++
++.sb-rule[open] > .sb-rule-summary::before {
++  transform: rotate(90deg);
++}
++
++.sb-rule-summary:hover {
++  background: rgba(255, 255, 255, 0.03);
++}
++
++.sb-rule-summary:focus-visible {
++  outline: none;
++  box-shadow: var(--focus-ring);
++}
++
++.sb-rule-name {
++  flex: 1 1 200px;
++  font-size: 0.9rem;
++  font-weight: 600;
++  color: var(--text-main);
++}
++
++.sb-rule-outcome {
++  display: inline-flex;
++  align-items: center;
++  gap: 0.6rem;
++}
++
++.sb-rule-cost {
++  font-size: 0.85rem;
++  color: var(--text-muted);
++  min-width: 2.2rem;
++  text-align: right;
++}
++
++.sb-rule-body {
++  display: flex;
++  flex-direction: column;
++  gap: 0.9rem;
++  padding: 0.25rem 1rem 1.1rem;
++  border-top: 1px solid var(--border-color);
++  padding-top: 1rem;
++}
++
++.sb-dl {
++  display: grid;
++  grid-template-columns: 1fr;
++  gap: 0.25rem;
++}
++
++.sb-dl dt {
++  font-size: 0.68rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  text-transform: uppercase;
++  color: var(--color-accent);
++  margin-top: 0.4rem;
++}
++
++.sb-dl dt:first-child {
++  margin-top: 0;
++}
++
++.sb-dl dd {
++  font-size: 0.85rem;
++  line-height: 1.65;
++  color: var(--text-muted);
++}
++
++.sb-tier-table {
++  border: 1px solid var(--border-color);
++  border-radius: 8px;
++  overflow: hidden;
++}
++
++.sb-tier-applied td {
++  background: rgba(56, 189, 248, 0.09);
++  color: var(--text-main);
++}
++
++.sb-tier-applied td:first-child {
++  box-shadow: inset 3px 0 0 var(--color-accent);
++}
++
++.sb-applied-tag {
++  margin-left: 0.6rem;
++  font-size: 0.62rem;
++  font-weight: 700;
++  letter-spacing: 0.08em;
++  color: var(--color-accent);
++  border: 1px solid rgba(56, 189, 248, 0.5);
++  border-radius: 4px;
++  padding: 0.05rem 0.35rem;
++  white-space: nowrap;
++}
++
++.sb-observed {
++  background: var(--bg-card);
++  border: 1px solid var(--border-color);
++  border-radius: 8px;
++  padding: 0.75rem 0.9rem;
++  display: flex;
++  flex-direction: column;
++  gap: 0.35rem;
++  font-size: 0.84rem;
++  line-height: 1.6;
++  color: var(--text-muted);
++}
++
++.sb-observed-label {
++  font-size: 0.66rem;
++  font-weight: 700;
++  letter-spacing: 0.1em;
++  color: var(--color-info);
++}
++
++.sb-observed-evidence {
++  font-size: 0.76rem;
++  color: var(--text-dim);
++  word-break: break-word;
++}
++
++.sb-skipped {
++  font-size: 0.82rem;
++  color: var(--color-warn);
++  background: var(--bg-warn);
++  border: 1px solid var(--border-warn);
++  border-radius: 8px;
++  padding: 0.6rem 0.8rem;
++  line-height: 1.55;
++}
++
++/* ---- Method + limits ---- */
++
++.sb-method-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
++  gap: 0.75rem;
++}
++
++.sb-method-item {
++  background: var(--bg-inner);
++  border: 1px solid var(--border-color);
++  border-radius: 10px;
++  padding: 0.9rem 1rem;
++}
++
++.sb-method-item h4 {
++  font-size: 0.86rem;
++  font-weight: 600;
++  color: var(--text-main);
++  margin-bottom: 0.35rem;
++}
++
++.sb-method-item p {
++  font-size: 0.8rem;
++  line-height: 1.6;
++  color: var(--text-muted);
++}
++
++.sb-limits {
++  display: flex;
++  flex-direction: column;
++  gap: 0.8rem;
++  font-size: 0.85rem;
++  line-height: 1.65;
++  color: var(--text-muted);
++}
++
++.sb-limits strong {
++  color: var(--text-main);
++}
++
++.sb-limits-list {
++  list-style: none;
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
++  gap: 0.4rem 1.25rem;
++  font-size: 0.82rem;
++}
++
++.sb-limits-list li {
++  position: relative;
++  padding-left: 1.1rem;
++}
++
++.sb-limits-list li::before {
++  content: "–";
++  position: absolute;
++  left: 0;
++  color: var(--text-dim);
++}
++
++@media (max-width: 640px) {
++  .sb-header-result {
++    display: none;
++  }
++
++  .sb-evidence {
++    max-width: 160px;
++  }
++}
+diff --git a/frontend/src/components/ScoreBreakdown.tsx b/frontend/src/components/ScoreBreakdown.tsx
+new file mode 100644
+index 0000000..42d5bd0
+--- /dev/null
++++ b/frontend/src/components/ScoreBreakdown.tsx
+@@ -0,0 +1,849 @@
++import React from "react";
++import type {
++  FindingSeverity,
++  FindingStatus,
++  SecurityFinding,
++  SecurityGrade,
++  SecurityResult,
++} from "../types/analysis";
++import "./ScoreBreakdown.css";
++
++/**
++ * "Why this score?" — an in-depth explanation of how the backend arrived at the
++ * score and grade it returned.
++ *
++ * The backend owns score calculation. Nothing here changes or replaces the
++ * score: the numbers shown come from the backend's own findings, matched
++ * against the documented scoring specification (rule table below), and are
++ * reconciled against the score the backend actually returned.
++ */
++
++interface ScoreBreakdownProps {
++  security: SecurityResult | null;
++}
++
++/* -------------------------------------------------------------------------
++   Reference data — mirrors the Security Scoring Specification
++   ------------------------------------------------------------------------- */
++
++interface RuleTier {
++  condition: string;
++  status: FindingStatus;
++  severity: FindingSeverity;
++  penalty: number;
++}
++
++interface RuleSpec {
++  id: string;
++  name: string;
++  checks: string;
++  whyItMatters: string;
++  tiers: RuleTier[];
++  note?: string;
++}
++
++const START_SCORE = 100;
++
++const RULES: RuleSpec[] = [
++  {
++    id: "TLS_VERSION",
++    name: "TLS Protocol Version",
++    checks: "The TLS protocol version negotiated with the target server.",
++    whyItMatters:
++      "The protocol version decides which cryptographic protections apply to the whole session. TLS 1.3 removed legacy features and weak constructions that older versions still allow, so it earns the best result. TLS 1.2 is still widely deployed and acceptable, which is why it is only a small deduction.",
++    tiers: [
++      { condition: "TLS 1.3 negotiated", status: "PASS", severity: "INFO", penalty: 0 },
++      { condition: "TLS 1.2 negotiated", status: "WARN", severity: "LOW", penalty: 10 },
++      {
++        condition: "Anything else — obsolete or unavailable",
++        status: "FAIL",
++        severity: "HIGH",
++        penalty: 30,
++      },
++    ],
++  },
++  {
++    id: "CERT_EXPIRY",
++    name: "Certificate Validity Interval",
++    checks:
++      "Whether the certificate's validity timestamps exist, can be parsed, and the current time falls between valid-from and valid-until.",
++    whyItMatters:
++      "A certificate outside its validity window is not a certificate clients should accept. Browsers show full-page warnings for it, so a failure here is a serious, user-visible problem. Missing or unparsable dates are treated the same way, because validity cannot be demonstrated.",
++    tiers: [
++      { condition: "valid_from ≤ now ≤ valid_until", status: "PASS", severity: "INFO", penalty: 0 },
++      {
++        condition: "Expired, not yet valid, missing, or unparsable timestamps",
++        status: "FAIL",
++        severity: "HIGH",
++        penalty: 30,
++      },
++    ],
++  },
++  {
++    id: "HOSTNAME_MATCH",
++    name: "Hostname Match",
++    checks:
++      "Whether the hostname that was requested matches the identity information (subject / SAN) in the certificate.",
++    whyItMatters:
++      "Hostname matching is what ties a certificate to the website you meant to reach. Without it, the certificate does not prove the server's identity, even if the encryption itself is strong. It is the single heaviest penalty in the model for that reason.",
++    tiers: [
++      { condition: "Hostname matches the certificate", status: "PASS", severity: "INFO", penalty: 0 },
++      {
++        condition: "Hostname does not match, or could not be determined",
++        status: "FAIL",
++        severity: "CRITICAL",
++        penalty: 35,
++      },
++    ],
++    note: "An unknown result (null) is deliberately treated as a failure, because identity could not be confirmed.",
++  },
++  {
++    id: "EXPIRY_PROXIMITY",
++    name: "Expiry Proximity",
++    checks: "How many days remain before a currently valid certificate expires.",
++    whyItMatters:
++      "A certificate that is valid today but about to lapse is an operational risk: an outage or browser warnings follow if renewal is missed. It is a warning rather than a failure because the certificate still works right now.",
++    tiers: [
++      { condition: "More than 30 days remaining", status: "PASS", severity: "INFO", penalty: 0 },
++      { condition: "8–30 days remaining", status: "WARN", severity: "LOW", penalty: 10 },
++      { condition: "0–7 days remaining", status: "WARN", severity: "MEDIUM", penalty: 15 },
++    ],
++    note: "Runs only when CERT_EXPIRY passed. If the certificate is already expired, not yet valid, missing or unparsable, this rule is skipped so the same problem is never penalized twice.",
++  },
++  {
++    id: "SELF_SIGNED",
++    name: "Self-Signed Certificate Indicator",
++    checks: "Whether the certificate appears self-signed, based on its subject and issuer metadata.",
++    whyItMatters:
++      "A self-signed certificate vouches only for itself; no independent certificate authority has verified it. Clients have no reason to trust it by default, which is why the deduction is substantial.",
++    tiers: [
++      { condition: "Not self-signed", status: "PASS", severity: "INFO", penalty: 0 },
++      { condition: "Self-signed", status: "WARN", severity: "HIGH", penalty: 25 },
++    ],
++    note: "If self-signed status could not be determined (null), no finding is produced and no points are deducted. Also note that “not self-signed” is not the same as “trusted CA chain” — it only means subject and issuer differ.",
++  },
++  {
++    id: "CERT_IDENTITY",
++    name: "Certificate Identity Metadata",
++    checks: "Whether both the subject and the issuer are present in the certificate data.",
++    whyItMatters:
++      "This is an informational rule. It documents who the certificate was issued to and by, which makes the report easier to explain, but it never changes the score.",
++    tiers: [
++      { condition: "Subject and issuer present", status: "PASS", severity: "INFO", penalty: 0 },
++    ],
++    note: "If either value is missing, no finding is produced.",
++  },
++];
++
++interface GradeBand {
++  grade: SecurityGrade;
++  min: number;
++  max: number;
++  meaning: string;
++}
++
++const GRADE_BANDS: GradeBand[] = [
++  { grade: "A", min: 90, max: 100, meaning: "Strong result" },
++  { grade: "B", min: 80, max: 89, meaning: "Good, minor issues" },
++  { grade: "C", min: 70, max: 79, meaning: "Fair, notable issues" },
++  { grade: "D", min: 60, max: 69, meaning: "Weak, significant issues" },
++  { grade: "E", min: 50, max: 59, meaning: "Poor" },
++  { grade: "F", min: 0, max: 49, meaning: "Failing" },
++];
++
++/* -------------------------------------------------------------------------
++   Helpers
++   ------------------------------------------------------------------------- */
++
++const clamp = (n: number): number => Math.max(0, Math.min(START_SCORE, n));
++
++const gradeFor = (score: number): GradeBand =>
++  GRADE_BANDS.find((b) => score >= b.min) ?? GRADE_BANDS[GRADE_BANDS.length - 1];
++
++const gradeClass = (g: string): string => {
++  switch (g.toUpperCase()) {
++    case "A":
++      return "grade-a";
++    case "B":
++      return "grade-b";
++    case "C":
++      return "grade-c";
++    case "D":
++      return "grade-d";
++    default:
++      return "grade-f";
++  }
++};
++
++const statusBadgeClass = (status: FindingStatus): string => {
++  switch (status) {
++    case "PASS":
++      return "badge-success";
++    case "WARN":
++      return "badge-warn";
++    case "FAIL":
++      return "badge-fail";
++    default:
++      return "badge-neutral";
++  }
++};
++
++const severityBadgeClass = (severity: string): string => {
++  switch (severity?.toUpperCase()) {
++    case "CRITICAL":
++      return "badge-severity-critical";
++    case "HIGH":
++      return "badge-severity-high";
++    case "MEDIUM":
++      return "badge-severity-medium";
++    case "LOW":
++      return "badge-severity-low";
++    default:
++      return "badge-severity-info";
++  }
++};
++
++const formatEvidence = (evidence: SecurityFinding["evidence"]): string | null => {
++  if (evidence === null || evidence === undefined) return null;
++  return Array.isArray(evidence) ? evidence.join(", ") : evidence;
++};
++
++const minus = (n: number): string => (n === 0 ? "0" : `−${n}`);
++
++interface LedgerRow {
++  finding: SecurityFinding;
++  rule: RuleSpec | undefined;
++  tier: RuleTier | undefined;
++  /** Penalty from the reference table, or null if this finding is not in it. */
++  penalty: number | null;
++  /** Running score after this row, or null if it cannot be attributed. */
++  running: number | null;
++}
++
++const SEGMENT_COLORS = ["#ef4444", "#f59e0b", "#a855f7", "#38bdf8", "#ec4899", "#14b8a6"];
++
++/* -------------------------------------------------------------------------
++   Component
++   ------------------------------------------------------------------------- */
++
++export const ScoreBreakdown: React.FC<ScoreBreakdownProps> = ({ security }) => {
++  if (!security) return null;
++
++  const { score, grade, findings } = security;
++  const band = gradeFor(score);
++
++  /* ---- Build the points ledger from the backend's own findings ---- */
++  const matched = findings.map((finding) => {
++    const rule = RULES.find((r) => r.id === finding.rule_id);
++    const tier = rule?.tiers.find(
++      (t) => t.status === finding.status && t.severity === finding.severity,
++    );
++    return { finding, rule, tier, penalty: tier ? tier.penalty : null };
++  });
++  const rows: LedgerRow[] = matched.map((m, i) => ({
++    ...m,
++    running:
++      m.penalty === null
++        ? null
++        : START_SCORE -
++          matched.slice(0, i + 1).reduce((sum, x) => sum + (x.penalty ?? 0), 0),
++  }));
++
++  const unmatchedCount = rows.filter((r) => r.penalty === null).length;
++  const attributable = unmatchedCount === 0;
++  const totalPenalty = rows.reduce((sum, r) => sum + (r.penalty ?? 0), 0);
++  const rawExpected = START_SCORE - totalPenalty;
++  const expectedScore = clamp(rawExpected);
++  const wasClamped = rawExpected < 0;
++  const reconciles = attributable && expectedScore === score;
++  const penalized = rows.filter((r) => (r.penalty ?? 0) > 0);
++
++  /* ---- Distance to the next grade ---- */
++  const nextBand = [...GRADE_BANDS].reverse().find((b) => b.min > score) ?? null;
++  const pointsToNext = nextBand ? nextBand.min - score : 0;
++
++  /* ---- Rule coverage: which of the six rules produced findings? ---- */
++  const findingFor = (id: string): SecurityFinding | undefined =>
++    findings.find((f) => f.rule_id === id);
++  const certExpiryFinding = findingFor("CERT_EXPIRY");
++
++  const coverageNote = (rule: RuleSpec): string | null => {
++    if (findingFor(rule.id)) return null;
++    if (rule.id === "EXPIRY_PROXIMITY") {
++      return certExpiryFinding && certExpiryFinding.status !== "PASS"
++        ? "Skipped — the certificate validity check did not pass, so this problem was already penalized once."
++        : "No finding was produced for this rule in this scan.";
++    }
++    if (rule.id === "SELF_SIGNED") {
++      return "No finding — self-signed status could not be determined, so nothing was deducted.";
++    }
++    if (rule.id === "CERT_IDENTITY") {
++      return "No finding — subject and/or issuer were not available.";
++    }
++    return "No finding was produced for this rule in this scan.";
++  };
++
++  /* ---- Headline narrative ---- */
++  const headline = (): string => {
++    if (penalized.length === 0) {
++      return unmatchedCount === 0
++        ? `No points were deducted. Every evaluated rule passed, so the score stays at ${score}/100 (grade ${grade}).`
++        : `The backend returned ${score}/100 (grade ${grade}).`;
++    }
++    if (!reconciles) {
++      return `The backend returned ${score}/100 (grade ${grade}). The itemised ledger below shows the deductions that could be matched to the documented rules.`;
++    }
++    const parts = penalized.map((r) => `${r.finding.rule_id} (−${r.penalty})`).join(", ");
++    return `The score started at ${START_SCORE} and lost ${totalPenalty} point${
++      totalPenalty === 1 ? "" : "s"
++    } across ${penalized.length} rule${penalized.length === 1 ? "" : "s"}: ${parts}. ${START_SCORE} − ${totalPenalty} = ${score}, which falls in the ${band.grade} band (${band.min}–${band.max}).`;
++  };
++
++  /* ---- Proportional bar: kept points followed by each penalty ---- */
++  const barSegments = reconciles
++    ? penalized.map((r, i) => ({
++        key: `${r.finding.rule_id}-${i}`,
++        label: r.finding.rule_id,
++        width: r.penalty as number,
++        color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
++      }))
++    : [];
++  // When clamped, the visible deductions cannot exceed what was available.
++  const barKept = reconciles ? score : clamp(score);
++
++  /* ---- What-if: effect of fixing each deduction on its own ---- */
++  const whatIfs = reconciles
++    ? penalized.map((r) => {
++        const newScore = clamp(rawExpected + (r.penalty as number));
++        return { row: r, newScore, newBand: gradeFor(newScore) };
++      })
++    : [];
++
++  return (
++    <div className="dashboard-card sb-card" data-testid="score-breakdown">
++      <div className="card-header">
++        <div className="card-header-left">
++          <span className="card-icon">🧮</span>
++          <div>
++            <h2 className="card-title">Why This Score? — Full Scoring Breakdown</h2>
++            <p className="card-subtitle">
++              How the backend turned the observed TLS and certificate properties into a score and grade
++            </p>
++          </div>
++        </div>
++        <div className="sb-header-result font-mono">
++          <span className={`sb-mini-grade ${gradeClass(grade)}`}>{grade}</span>
++          <span className="sb-mini-score">
++            {score}
++            <span className="sb-mini-total">/100</span>
++          </span>
++        </div>
++      </div>
++
++      <div className="sb-body">
++        {/* ------------------------------------------------------------
++            1. Verdict
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-verdict-title">
++          <h3 id="sb-verdict-title" className="sb-section-title">
++            <span className="sb-step">1</span> The short answer
++          </h3>
++          <p className="sb-headline" data-testid="score-headline">
++            {headline()}
++          </p>
++
++          {reconciles && (
++            <div
++              className="sb-bar"
++              role="img"
++              aria-label={`Score bar: ${barKept} points kept, ${totalPenalty} points deducted`}
++            >
++              <div className="sb-bar-track">
++                <div className="sb-bar-kept" style={{ width: `${barKept}%` }}>
++                  <span className="sb-bar-kept-label font-mono">{barKept}</span>
++                </div>
++                {barSegments.map((seg) => (
++                  <div
++                    key={seg.key}
++                    className="sb-bar-lost"
++                    style={{ width: `${seg.width}%`, background: seg.color }}
++                    title={`${seg.label}: −${seg.width}`}
++                  >
++                    <span className="sb-bar-lost-label font-mono">−{seg.width}</span>
++                  </div>
++                ))}
++              </div>
++              <div className="sb-bar-scale font-mono" aria-hidden="true">
++                <span>0</span>
++                <span>50</span>
++                <span>60</span>
++                <span>70</span>
++                <span>80</span>
++                <span>90</span>
++                <span>100</span>
++              </div>
++              {barSegments.length > 0 && (
++                <ul className="sb-bar-legend">
++                  {barSegments.map((seg) => (
++                    <li key={seg.key} className="font-mono">
++                      <span className="sb-swatch" style={{ background: seg.color }} />
++                      {seg.label} (−{seg.width})
++                    </li>
++                  ))}
++                </ul>
++              )}
++            </div>
++          )}
++        </section>
++
++        {/* ------------------------------------------------------------
++            2. Points ledger
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-ledger-title">
++          <h3 id="sb-ledger-title" className="sb-section-title">
++            <span className="sb-step">2</span> Points ledger — where every point went
++          </h3>
++          <p className="sb-lead">
++            The scorer always starts at <strong>{START_SCORE}</strong> and subtracts a fixed penalty
++            for each rule that did not fully pass. Below is each finding the backend produced, in
++            order, with the penalty its result carries and the running total.
++          </p>
++
++          <div className="sb-table-wrap">
++            <table className="sb-table" data-testid="score-ledger">
++              <thead>
++                <tr>
++                  <th scope="col">Rule</th>
++                  <th scope="col">Result</th>
++                  <th scope="col">Evidence</th>
++                  <th scope="col" className="sb-num">
++                    Penalty
++                  </th>
++                  <th scope="col" className="sb-num">
++                    Running
++                  </th>
++                </tr>
++              </thead>
++              <tbody>
++                <tr className="sb-row-start">
++                  <td colSpan={3}>Starting score</td>
++                  <td className="sb-num font-mono">—</td>
++                  <td className="sb-num font-mono">{START_SCORE}</td>
++                </tr>
++                {rows.map((row, i) => {
++                  const evidence = formatEvidence(row.finding.evidence);
++                  return (
++                    <tr
++                      key={`${row.finding.rule_id}-${i}`}
++                      className={
++                        (row.penalty ?? 0) > 0 ? "sb-row-penalty" : "sb-row-neutral"
++                      }
++                      data-testid={`ledger-row-${row.finding.rule_id}`}
++                    >
++                      <td>
++                        <span className="rule-id-tag font-mono">{row.finding.rule_id}</span>
++                        <div className="sb-row-title">{row.finding.title}</div>
++                      </td>
++                      <td>
++                        <div className="sb-badges">
++                          <span className={`badge ${statusBadgeClass(row.finding.status)}`}>
++                            {row.finding.status}
++                          </span>
++                          <span className={`badge ${severityBadgeClass(row.finding.severity)}`}>
++                            {row.finding.severity}
++                          </span>
++                        </div>
++                      </td>
++                      <td className="sb-evidence font-mono">{evidence ?? "—"}</td>
++                      <td
++                        className={`sb-num font-mono ${
++                          (row.penalty ?? 0) > 0 ? "sb-neg" : ""
++                        }`}
++                      >
++                        {row.penalty === null ? "n/a" : minus(row.penalty)}
++                      </td>
++                      <td className="sb-num font-mono">
++                        {row.running === null ? "n/a" : row.running}
++                      </td>
++                    </tr>
++                  );
++                })}
++              </tbody>
++              <tfoot>
++                <tr className="sb-row-total">
++                  <td colSpan={3}>
++                    Total deducted
++                    {wasClamped && " (score floors at 0)"}
++                  </td>
++                  <td className="sb-num font-mono sb-neg">{minus(totalPenalty)}</td>
++                  <td className="sb-num font-mono">
++                    {attributable ? `${rawExpected}${wasClamped ? " → 0" : ""}` : "n/a"}
++                  </td>
++                </tr>
++                <tr className="sb-row-final">
++                  <td colSpan={3}>Final score returned by the backend</td>
++                  <td className="sb-num font-mono">=</td>
++                  <td className="sb-num font-mono sb-final">{score}</td>
++                </tr>
++              </tfoot>
++            </table>
++          </div>
++
++          {/* Reconciliation */}
++          <div
++            className={`sb-recon ${reconciles ? "sb-recon-ok" : "sb-recon-warn"}`}
++            data-testid="score-reconciliation"
++          >
++            <span className="sb-recon-icon" aria-hidden="true">
++              {reconciles ? "✓" : "ℹ"}
++            </span>
++            <div>
++              <strong>{reconciles ? "Ledger reconciles with the backend score." : "Partial reconciliation."}</strong>{" "}
++              {reconciles ? (
++                <>
++                  {START_SCORE} − {totalPenalty} = {rawExpected}
++                  {wasClamped ? `, clamped to the 0–100 range → ${expectedScore}` : ""}, which matches
++                  the {score} the backend reported.
++                </>
++              ) : unmatchedCount > 0 ? (
++                <>
++                  {unmatchedCount} finding{unmatchedCount === 1 ? "" : "s"} could not be matched to
++                  a rule in the scoring reference table, so their penalty cannot be itemised here.
++                  The score shown ({score}) is still exactly what the backend calculated; this panel
++                  never recalculates it.
++                </>
++              ) : (
++                <>
++                  The reference table adds up to {expectedScore}, but the backend returned {score}.
++                  The backend scorer is authoritative, so the returned score stands — the reference
++                  table here may be out of date with the scorer.
++                </>
++              )}
++            </div>
++          </div>
++        </section>
++
++        {/* ------------------------------------------------------------
++            3. Grade
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-grade-title">
++          <h3 id="sb-grade-title" className="sb-section-title">
++            <span className="sb-step">3</span> From score to grade
++          </h3>
++          <p className="sb-lead">
++            The grade is derived only after all penalties are applied and the score is clamped to
++            0–100. Your score of <strong>{score}</strong> falls in the{" "}
++            <strong>
++              {band.grade} band ({band.min}–{band.max})
++            </strong>
++            .
++            {nextBand ? (
++              <>
++                {" "}
++                You are <strong>{pointsToNext}</strong> point{pointsToNext === 1 ? "" : "s"} short
++                of grade {nextBand.grade} (which starts at {nextBand.min}).
++              </>
++            ) : (
++              <> This is the highest grade available.</>
++            )}
++          </p>
++
++          <div className="sb-grades" data-testid="grade-scale">
++            {GRADE_BANDS.map((b) => (
++              <div
++                key={b.grade}
++                className={`sb-grade-cell ${b.grade === band.grade ? "sb-grade-current" : ""}`}
++                aria-current={b.grade === band.grade ? "true" : undefined}
++              >
++                <span className={`sb-grade-letter ${gradeClass(b.grade)}`}>{b.grade}</span>
++                <span className="sb-grade-range font-mono">
++                  {b.min}–{b.max}
++                </span>
++                <span className="sb-grade-meaning">{b.meaning}</span>
++                {b.grade === band.grade && <span className="sb-grade-you font-mono">YOU ARE HERE</span>}
++              </div>
++            ))}
++          </div>
++
++          {grade !== band.grade && (
++            <p className="sb-note">
++              Note: the backend returned grade {grade}, while the 0–100 grade table maps {score} to{" "}
++              {band.grade}. The backend grade is the one displayed everywhere else.
++            </p>
++          )}
++        </section>
++
++        {/* ------------------------------------------------------------
++            4. What-if
++            ------------------------------------------------------------ */}
++        {whatIfs.length > 0 && (
++          <section className="sb-section" aria-labelledby="sb-whatif-title">
++            <h3 id="sb-whatif-title" className="sb-section-title">
++              <span className="sb-step">4</span> What would improve it?
++            </h3>
++            <p className="sb-lead">
++              Each row shows the estimated score if only that one issue were resolved and everything
++              else stayed the same.
++            </p>
++            <div className="sb-table-wrap">
++              <table className="sb-table" data-testid="score-whatif">
++                <thead>
++                  <tr>
++                    <th scope="col">Resolve this</th>
++                    <th scope="col" className="sb-num">
++                      Points regained
++                    </th>
++                    <th scope="col" className="sb-num">
++                      New score
++                    </th>
++                    <th scope="col">New grade</th>
++                  </tr>
++                </thead>
++                <tbody>
++                  {whatIfs.map(({ row, newScore, newBand }, i) => (
++                    <tr key={`${row.finding.rule_id}-${i}`}>
++                      <td>
++                        <span className="rule-id-tag font-mono">{row.finding.rule_id}</span>
++                        <div className="sb-row-title">{row.finding.title}</div>
++                      </td>
++                      <td className="sb-num font-mono sb-pos">+{row.penalty}</td>
++                      <td className="sb-num font-mono">{newScore}</td>
++                      <td>
++                        <span className={`sb-grade-pill ${gradeClass(newBand.grade)}`}>
++                          {newBand.grade}
++                        </span>
++                        {newBand.grade !== band.grade && (
++                          <span className="sb-grade-move font-mono">
++                            {band.grade} → {newBand.grade}
++                          </span>
++                        )}
++                      </td>
++                    </tr>
++                  ))}
++                </tbody>
++              </table>
++            </div>
++            <p className="sb-note">
++              Estimates only — the backend recalculates the real score on the next scan. See the
++              Recommendations card for how to resolve each issue.
++            </p>
++          </section>
++        )}
++
++        {/* ------------------------------------------------------------
++            5. Rule reference
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-rules-title">
++          <h3 id="sb-rules-title" className="sb-section-title">
++            <span className="sb-step">{whatIfs.length > 0 ? 5 : 4}</span> The rules, in depth
++          </h3>
++          <p className="sb-lead">
++            The scoring engine is deliberately rule-based: each rule inspects one property and has a
++            fixed outcome table. Expand a rule to see what it checks, why it matters, every possible
++            outcome, and which one applied to this scan.
++          </p>
++
++          <div className="sb-rules">
++            {RULES.map((rule) => {
++              const finding = findingFor(rule.id);
++              const matchedTier = finding
++                ? rule.tiers.find(
++                    (t) => t.status === finding.status && t.severity === finding.severity,
++                  )
++                : undefined;
++              const cost = matchedTier?.penalty ?? 0;
++              const skipped = coverageNote(rule);
++
++              return (
++                <details
++                  key={rule.id}
++                  className={`sb-rule ${cost > 0 ? "sb-rule-hit" : ""}`}
++                  open={cost > 0}
++                  data-testid={`rule-detail-${rule.id}`}
++                >
++                  <summary className="sb-rule-summary">
++                    <span className="rule-id-tag font-mono">{rule.id}</span>
++                    <span className="sb-rule-name">{rule.name}</span>
++                    <span className="sb-rule-outcome">
++                      {finding ? (
++                        <>
++                          <span className={`badge ${statusBadgeClass(finding.status)}`}>
++                            {finding.status}
++                          </span>
++                          <span className={`sb-rule-cost font-mono ${cost > 0 ? "sb-neg" : ""}`}>
++                            {matchedTier ? minus(cost) : "n/a"}
++                          </span>
++                        </>
++                      ) : (
++                        <span className="badge badge-neutral">NO FINDING</span>
++                      )}
++                    </span>
++                  </summary>
++
++                  <div className="sb-rule-body">
++                    <dl className="sb-dl">
++                      <dt>What it checks</dt>
++                      <dd>{rule.checks}</dd>
++                      <dt>Why it matters</dt>
++                      <dd>{rule.whyItMatters}</dd>
++                    </dl>
++
++                    <table className="sb-table sb-tier-table">
++                      <thead>
++                        <tr>
++                          <th scope="col">Possible outcome</th>
++                          <th scope="col">Status</th>
++                          <th scope="col">Severity</th>
++                          <th scope="col" className="sb-num">
++                            Penalty
++                          </th>
++                        </tr>
++                      </thead>
++                      <tbody>
++                        {rule.tiers.map((tier) => {
++                          const isApplied = matchedTier === tier;
++                          return (
++                            <tr
++                              key={tier.condition}
++                              className={isApplied ? "sb-tier-applied" : ""}
++                              aria-current={isApplied ? "true" : undefined}
++                            >
++                              <td>
++                                {tier.condition}
++                                {isApplied && (
++                                  <span className="sb-applied-tag font-mono">APPLIED</span>
++                                )}
++                              </td>
++                              <td>
++                                <span className={`badge ${statusBadgeClass(tier.status)}`}>
++                                  {tier.status}
++                                </span>
++                              </td>
++                              <td>
++                                <span className={`badge ${severityBadgeClass(tier.severity)}`}>
++                                  {tier.severity}
++                                </span>
++                              </td>
++                              <td className="sb-num font-mono">{minus(tier.penalty)}</td>
++                            </tr>
++                          );
++                        })}
++                      </tbody>
++                    </table>
++
++                    {finding && (
++                      <div className="sb-observed">
++                        <span className="sb-observed-label font-mono">THIS SCAN</span>
++                        <p>{finding.explanation}</p>
++                        {formatEvidence(finding.evidence) && (
++                          <p className="font-mono sb-observed-evidence">
++                            Evidence: {formatEvidence(finding.evidence)}
++                          </p>
++                        )}
++                      </div>
++                    )}
++
++                    {skipped && <p className="sb-skipped">{skipped}</p>}
++                    {rule.note && <p className="sb-note">{rule.note}</p>}
++                  </div>
++                </details>
++              );
++            })}
++          </div>
++        </section>
++
++        {/* ------------------------------------------------------------
++            6. Method
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-method-title">
++          <h3 id="sb-method-title" className="sb-section-title">
++            <span className="sb-step">{whatIfs.length > 0 ? 6 : 5}</span> How the scoring model works
++          </h3>
++
++          <div className="sb-method-grid">
++            <div className="sb-method-item">
++              <h4>Penalty-based</h4>
++              <p>
++                Every scan starts at 100. Each rule that does not fully pass subtracts a fixed
++                number of points. The result is clamped to 0–100, then mapped to a letter grade.
++              </p>
++            </div>
++            <div className="sb-method-item">
++              <h4>Deterministic</h4>
++              <p>
++                The same inputs always give the same score, grade, findings and recommendations. No
++                randomness and no external calls; only certificate dates are compared against the
++                current time.
++              </p>
++            </div>
++            <div className="sb-method-item">
++              <h4>Severity ≠ penalty</h4>
++              <p>
++                Severity describes how serious a finding is; the penalty is how many points it
++                costs. They are related but not identical — a WARN can still carry a meaningful
++                deduction, such as SELF_SIGNED at −25.
++              </p>
++            </div>
++            <div className="sb-method-item">
++              <h4>No double counting</h4>
++              <p>
++                EXPIRY_PROXIMITY only runs when the certificate is currently valid. An expired
++                certificate is penalized once, by CERT_EXPIRY, not again for being near expiry.
++              </p>
++            </div>
++            <div className="sb-method-item">
++              <h4>Unknown is not “fine”</h4>
++              <p>
++                Where a property is required to establish trust (hostname match, validity dates),
++                unavailable data counts as a failure. Where it is optional (self-signed status), no
++                finding is produced and nothing is deducted.
++              </p>
++            </div>
++            <div className="sb-method-item">
++              <h4>Backend is the source of truth</h4>
++              <p>
++                The score is calculated by the backend. This panel only explains it — it matches the
++                findings against the documented rules and never alters the score or grade.
++              </p>
++            </div>
++          </div>
++        </section>
++
++        {/* ------------------------------------------------------------
++            7. Limits
++            ------------------------------------------------------------ */}
++        <section className="sb-section" aria-labelledby="sb-limits-title">
++          <h3 id="sb-limits-title" className="sb-section-title">
++            <span className="sb-step">{whatIfs.length > 0 ? 7 : 6}</span> What this score does not measure
++          </h3>
++          <div className="sb-limits">
++            <p>
++              This is an educational, explainable assessment of the TLS and certificate properties
++              this tool inspects. It is <strong>not</strong> a professional security audit or a
++              complete vulnerability scan, and a high score is not a guarantee that a website is
++              secure.
++            </p>
++            <ul className="sb-limits-list">
++              <li>Application vulnerabilities such as SQL injection or XSS</li>
++              <li>Authentication and authorization security</li>
++              <li>Server-side software vulnerabilities</li>
++              <li>HTTP security headers and HSTS</li>
++              <li>Full certificate-chain quality</li>
++              <li>Revocation status</li>
++              <li>Certificate Transparency</li>
++              <li>Browser trust decisions</li>
++              <li>TLS extension details and cipher-suite strength</li>
++              <li>Packet-level network behaviour</li>
++            </ul>
++            <p className="sb-note">
++              “Not self-signed” only means the subject and issuer differ. It does not prove a
++              trusted CA chain, revocation status, or browser trust.
++            </p>
++          </div>
++        </section>
++      </div>
++    </div>
++  );
++};
++
++export default ScoreBreakdown;
