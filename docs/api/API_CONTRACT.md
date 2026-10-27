@@ -428,7 +428,8 @@ The score is an explainable educational assessment, not a replacement for profes
   "severity": "INFO",
   "title": "TLS version is supported",
   "explanation": "The server negotiated TLS 1.3.",
-  "evidence": "TLSv1.3"
+  "evidence": "TLSv1.3",
+  "points_deducted": 0
 }
 ```
 
@@ -440,8 +441,11 @@ The score is an explainable educational assessment, not a replacement for profes
 | `title` | string | yes |
 | `explanation` | string | yes |
 | `evidence` | string, array of strings, or null | no |
+| `points_deducted` | integer ≥ 0 | no (defaults to `0`) |
 
 `evidence` supports either one value or multiple evidence values because the current security engine may provide more than one observation.
+
+`points_deducted` is the number of points this finding removed from the starting 100. The score equals `max(0, min(100, 100 - sum(points_deducted)))`, so clients can explain a score by displaying these values and must not keep their own copy of the penalty table. PASS and informational findings report `0`.
 
 ---
 

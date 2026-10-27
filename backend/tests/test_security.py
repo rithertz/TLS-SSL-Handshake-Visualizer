@@ -196,3 +196,73 @@ def test_determinism():
     res2 = score_security("TLSv1.3", cert, now=FIXED_NOW)
 
     assert res1 == res2
+
+
+# ---------------------------------------------------------------------------
+# points_deducted: the backend reports each finding's penalty so clients never
+# need to re-implement the scoring table.
+# ---------------------------------------------------------------------------
+
+_GOOD_CERT = {
+    "subject": "CN=example.com",
+    "issuer": "CN=DigiCert CA",
+    "valid_from": "2026-01-01T00:00:00Z",
+    "valid_until": "2026-12-31T23:59:59Z",
+    "san": ["example.com"],
+    "hostname_match": True,
+    "self_signed": False,
+}
+
+
+def _assert_points_add_up(result):
+    total = sum(f["points_deducted"] for f in result["findings"])
+    assert result["score"] == max(0, min(100, 100 - total))
+
+
+def test_points_deducted_is_zero_for_a_clean_scan():
+    result = score_security("TLSv1.3", _GOOD_CERT, now=FIXED_NOW)
+    assert all(f["points_deducted"] == 0 for f in result["findings"])
+    _assert_points_add_up(result)
+
+
+def test_points_deducted_matches_each_rule_penalty():
+    cert = {**_GOOD_CERT, "self_signed": True}
+    result = score_security("TLSv1.2", cert, now=FIXED_NOW)
+    points = {f["rule_id"]: f["points_deducted"] for f in result["findings"]}
+    assert points["TLS_VERSION"] == 10
+    assert points["SELF_SIGNED"] == 25
+    assert points["HOSTNAME_MATCH"] == 0
+    assert result["score"] == 65
+    _assert_points_add_up(result)
+
+
+def test_points_deducted_for_expiry_windows():
+    near = {**_GOOD_CERT, "valid_until": "2026-09-20T00:00:00Z"}  # ~3 days
+    soon = {**_GOOD_CERT, "valid_until": "2026-10-01T00:00:00Z"}  # ~14 days
+    for cert, expected in ((near, 15), (soon, 10)):
+        result = score_security("TLSv1.3", cert, now=FIXED_NOW)
+        prox = next(f for f in result["findings"] if f["rule_id"] == "EXPIRY_PROXIMITY")
+        assert prox["points_deducted"] == expected
+        _assert_points_add_up(result)
+
+
+def test_points_deducted_when_everything_fails_exceeds_clamped_score():
+    cert = {
+        **_GOOD_CERT,
+        "valid_until": "2026-01-02T00:00:00Z",  # expired
+        "hostname_match": False,
+        "self_signed": True,
+    }
+    result = score_security("TLSv1.2", cert, now=FIXED_NOW)
+    assert sum(f["points_deducted"] for f in result["findings"]) == 100
+    assert result["score"] == 0
+    _assert_points_add_up(result)
+
+
+def test_points_deducted_for_missing_certificate_and_unknown_tls():
+    result = score_security(None, None, now=FIXED_NOW)
+    points = {f["rule_id"]: f["points_deducted"] for f in result["findings"]}
+    assert points["TLS_VERSION"] == 30
+    assert points["CERT_EXPIRY"] == 30
+    assert points["HOSTNAME_MATCH"] == 35
+    _assert_points_add_up(result)

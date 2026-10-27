@@ -12,9 +12,11 @@ import CertificateDetails from "./components/CertificateDetails";
 import SecurityScore from "./components/SecurityScore";
 import FindingsList from "./components/FindingsList";
 import Recommendations from "./components/Recommendations";
+import ScoreExplanation from "./components/ScoreExplanation";
 import HandshakeVisualizerEntry from "./components/HandshakeVisualizerEntry";
 
 import "./styles/dashboard.css";
+import "./styles/scoreExplanation.css";
 
 export const App: React.FC = () => {
   const [status, setStatus] = useState<AnalysisState>("idle");
@@ -130,6 +132,12 @@ export const App: React.FC = () => {
                 findings={analysis.security?.findings ?? []}
               />
             </div>
+
+            {/* Scoring Explanation Row */}
+            <ScoreExplanation
+              security={analysis.security}
+              certificate={analysis.certificate}
+            />
           </div>
         )}
       </main>
