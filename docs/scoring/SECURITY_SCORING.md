@@ -31,6 +31,8 @@ backend/tests/
 
 The backend owns score calculation. The frontend renders score data but does not recalculate it.
 
+To let the frontend explain a score without copying the penalty table, every finding carries `points_deducted`, the points it removed from 100. The reported score is always `max(0, min(100, 100 - sum(points_deducted)))`; this is covered by backend tests.
+
 ## Scoring Philosophy
 
 The system is deliberately rule based.
@@ -42,7 +44,8 @@ Each rule examines one observable or derived property and produces a finding wit
 - `severity`;
 - `title`;
 - `explanation`;
-- `evidence`.
+- `evidence`;
+- `points_deducted`.
 
 Rule statuses:
 

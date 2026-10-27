@@ -46,6 +46,8 @@ class SecurityFinding(BaseModel):
     title: str
     explanation: str
     evidence: str | list[str] | None = None
+    # Points this finding removed from the 100-point starting score (0 for PASS/info).
+    points_deducted: int = Field(0, ge=0)
 
 
 class Recommendation(BaseModel):

@@ -9,11 +9,11 @@ import { formatDate } from "../utils/formatters";
 /**
  * In-depth "Why this score?" explanation.
  *
- * The backend owns score calculation. This component never changes the score
- * or grade it is given; it only *explains* them by reading the findings the
- * backend returned and mapping each one to the documented penalty
- * (docs/scoring/SECURITY_SCORING.md). A reconciliation row at the end shows
- * whether the explained total agrees with the backend's number.
+ * The backend owns score calculation. This component never calculates a score,
+ * a grade or a penalty. Every number it shows (score, grade, and the points each
+ * finding deducted) is returned by the API. It only arranges them into an
+ * explanation and adds a reconciliation check that flags any disagreement
+ * between the reported deductions and the reported score.
  */
 
 interface ScoreExplanationProps {
@@ -27,9 +27,8 @@ interface ScoreExplanationProps {
 
 interface Outcome {
   label: string;
-  status: "PASS" | "WARN" | "FAIL";
+  status: "PASS" | "WARN" | "FAIL" | "NONE";
   severity: string;
-  penalty: number;
 }
 
 interface RuleMeta {
@@ -49,13 +48,12 @@ const RULE_ORDER: RuleMeta[] = [
     whyItMatters:
       "The protocol version decides which cryptographic building blocks protect the connection. TLS 1.3 removed legacy algorithms and shortened the handshake, so it is the strongest result. TLS 1.2 is still widely used and acceptable, but it earns a small deduction. Anything older (or an unknown version) is treated as insecure.",
     outcomes: [
-      { label: "TLSv1.3", status: "PASS", severity: "INFO", penalty: 0 },
-      { label: "TLSv1.2", status: "WARN", severity: "LOW", penalty: 10 },
+      { label: "TLSv1.3", status: "PASS", severity: "INFO" },
+      { label: "TLSv1.2", status: "WARN", severity: "LOW" },
       {
         label: "Older, obsolete or unavailable",
         status: "FAIL",
-        severity: "HIGH",
-        penalty: 30,
+        severity: "HIGH"
       },
     ],
   },
@@ -70,14 +68,12 @@ const RULE_ORDER: RuleMeta[] = [
       {
         label: "valid_from ≤ now ≤ valid_until",
         status: "PASS",
-        severity: "INFO",
-        penalty: 0,
+        severity: "INFO"
       },
       {
         label: "Expired, not yet valid, missing or unparsable",
         status: "FAIL",
-        severity: "HIGH",
-        penalty: 30,
+        severity: "HIGH"
       },
     ],
   },
@@ -87,14 +83,13 @@ const RULE_ORDER: RuleMeta[] = [
     checks:
       "Whether the hostname you asked for appears in the certificate's identity information (Subject Alternative Names).",
     whyItMatters:
-      "Encryption is only useful if you are talking to the right party. A certificate issued for a different name does not authenticate the site you requested, so this carries the largest single penalty in the model.",
+      "Encryption is only useful if you are talking to the right party. A certificate issued for a different name does not authenticate the site you requested, so a mismatch is treated as a critical problem.",
     outcomes: [
-      { label: "Hostname matches", status: "PASS", severity: "INFO", penalty: 0 },
+      { label: "Hostname matches", status: "PASS", severity: "INFO" },
       {
         label: "Mismatch or could not be determined",
         status: "FAIL",
-        severity: "CRITICAL",
-        penalty: 35,
+        severity: "CRITICAL"
       },
     ],
   },
@@ -106,9 +101,9 @@ const RULE_ORDER: RuleMeta[] = [
     whyItMatters:
       "A certificate that is valid today but about to lapse is an operational risk: if it is not renewed in time the site will start failing. The closer the deadline, the larger the deduction. This rule only runs when the validity rule passed, so one expiry problem is never counted twice.",
     outcomes: [
-      { label: "More than 30 days left", status: "PASS", severity: "INFO", penalty: 0 },
-      { label: "8–30 days left", status: "WARN", severity: "LOW", penalty: 10 },
-      { label: "0–7 days left", status: "WARN", severity: "MEDIUM", penalty: 15 },
+      { label: "More than 30 days left", status: "PASS", severity: "INFO" },
+      { label: "8–30 days left", status: "WARN", severity: "LOW" },
+      { label: "0–7 days left", status: "WARN", severity: "MEDIUM" },
     ],
   },
   {
@@ -119,13 +114,12 @@ const RULE_ORDER: RuleMeta[] = [
     whyItMatters:
       "A self-signed certificate is not vouched for by any certificate authority, so a browser has no independent reason to trust it. Note the limit of this check: 'not self-signed' only means subject and issuer differ. It does not prove a full trusted chain, revocation status or browser trust.",
     outcomes: [
-      { label: "Not self-signed", status: "PASS", severity: "INFO", penalty: 0 },
-      { label: "Self-signed", status: "WARN", severity: "HIGH", penalty: 25 },
+      { label: "Not self-signed", status: "PASS", severity: "INFO" },
+      { label: "Self-signed", status: "WARN", severity: "HIGH" },
       {
         label: "Could not be determined",
         status: "PASS",
-        severity: "n/a",
-        penalty: 0,
+        severity: "n/a"
       },
     ],
   },
@@ -139,10 +133,9 @@ const RULE_ORDER: RuleMeta[] = [
       {
         label: "Subject and issuer present",
         status: "PASS",
-        severity: "INFO",
-        penalty: 0,
+        severity: "INFO"
       },
-      { label: "Either missing", status: "PASS", severity: "n/a", penalty: 0 },
+      { label: "Either missing", status: "NONE", severity: "n/a" },
     ],
   },
 ];
@@ -169,28 +162,6 @@ const NOT_MEASURED: string[] = [
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
-
-/** Documented penalty for a finding. Unknown rules map to 0. */
-function penaltyFor(finding: SecurityFinding): number {
-  const sev = finding.severity?.toUpperCase();
-  switch (finding.rule_id) {
-    case "TLS_VERSION":
-      if (finding.status === "WARN") return 10;
-      if (finding.status === "FAIL") return 30;
-      return 0;
-    case "CERT_EXPIRY":
-      return finding.status === "FAIL" ? 30 : 0;
-    case "HOSTNAME_MATCH":
-      return finding.status === "FAIL" ? 35 : 0;
-    case "EXPIRY_PROXIMITY":
-      if (finding.status === "WARN") return sev === "MEDIUM" ? 15 : 10;
-      return 0;
-    case "SELF_SIGNED":
-      return finding.status === "WARN" ? 25 : 0;
-    default:
-      return 0;
-  }
-}
 
 function evidenceText(ev: SecurityFinding["evidence"]): string {
   if (ev === null || ev === undefined) return "No evidence recorded";
@@ -227,7 +198,7 @@ function reasonFor(finding: SecurityFinding, penalty: number): string {
     case "HOSTNAME_MATCH":
       if (finding.status === "PASS")
         return "The requested hostname is covered by the certificate, so the certificate does authenticate this site.";
-      return `The certificate does not cover the requested hostname (${ev}), so it cannot authenticate this site. ${penalty} points were deducted, the largest single penalty.`;
+      return `The certificate does not cover the requested hostname (${ev}), so it cannot authenticate this site. ${penalty} points were deducted.`;
     case "EXPIRY_PROXIMITY":
       if (finding.status === "PASS")
         return `${ev}: comfortably more than 30 days, so nothing was deducted.`;
@@ -307,23 +278,32 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
   });
 
   // Build the running ledger, starting from 100 and following the rule order.
+  const extraRules: RuleMeta[] = findings
+    .filter((f, i) => !RULE_ORDER.some((r) => r.id === f.rule_id) && findings.findIndex((g) => g.rule_id === f.rule_id) === i)
+    .map((f) => ({
+      id: f.rule_id,
+      name: f.title,
+      checks: "Evaluated by the backend scoring engine. This panel has no extra description for this rule.",
+      whyItMatters: f.explanation,
+      outcomes: [],
+    }));
+  const ruleList = [...RULE_ORDER, ...extraRules];
+
   const ledger: LedgerRow[] = [];
-  for (const meta of RULE_ORDER) {
+  for (const meta of ruleList) {
     const finding = byRule.get(meta.id) ?? null;
-    const penalty = finding ? penaltyFor(finding) : 0;
+    const penalty = finding?.points_deducted ?? 0;
     const before = ledger.length > 0 ? ledger[ledger.length - 1].after : 100;
     ledger.push({ meta, finding, penalty, before, after: before - penalty });
   }
 
-  const unknownFindings = findings.filter(
-    (f) => !RULE_ORDER.some((r) => r.id === f.rule_id),
-  );
+  const missingPoints = findings.filter((f) => typeof f.points_deducted !== "number");
 
   const totalPenalty = ledger.reduce((sum, r) => sum + r.penalty, 0);
   const explainedRaw = 100 - totalPenalty;
   const explainedScore = Math.max(0, Math.min(100, explainedRaw));
   const wasClamped = explainedRaw !== explainedScore;
-  const reconciles = explainedScore === score && unknownFindings.length === 0;
+  const reconciles = explainedScore === score && missingPoints.length === 0;
 
   const penalised = ledger.filter((r) => r.penalty > 0);
   const passedCount = ledger.filter((r) => r.finding && r.penalty === 0).length;
@@ -411,11 +391,9 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
             <p className="se-mismatch" role="alert" data-testid="se-mismatch">
               <strong>Mismatch:</strong> the deductions explained by the findings give{" "}
               {explainedScore}, but the backend reported {score}.{" "}
-              {unknownFindings.length > 0
-                ? `This scan includes findings this panel has no penalty mapping for (${unknownFindings
-                    .map((f) => f.rule_id)
-                    .join(", ")}). `
-                : "The scoring rules may have changed since this panel was written. "}
+              {missingPoints.length > 0
+                ? `The backend did not report points_deducted for ${missingPoints.length} finding(s), so those could not be counted. `
+                : "The backend's per-finding deductions do not add up to its score. "}
               The backend score and grade are authoritative.
             </p>
           )}
@@ -555,9 +533,10 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                       <dd>{meta.whyItMatters}</dd>
                     </dl>
 
+                    {meta.outcomes.length > 0 && (
                     <div className="se-outcomes">
                       <span className="se-outcomes-title">
-                        Every possible outcome for this rule
+                        Possible outcomes for this rule (points are reported by the backend per scan)
                       </span>
                       <table className="se-table">
                         <thead>
@@ -565,17 +544,15 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                             <th>Condition</th>
                             <th>Status</th>
                             <th>Severity</th>
-                            <th className="se-num">Penalty</th>
                           </tr>
                         </thead>
                         <tbody>
                           {meta.outcomes.map((o) => {
                             const isHit =
                               !!finding &&
+                              o.status !== "NONE" &&
                               finding.status === o.status &&
-                              (o.severity === "n/a" ||
-                                finding.severity?.toUpperCase() === o.severity) &&
-                              o.penalty === penalty;
+                              finding.severity?.toUpperCase() === o.severity;
                             return (
                               <tr
                                 key={o.label}
@@ -585,17 +562,15 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                                   {o.label}
                                   {isHit && <span className="se-hit-tag">this scan</span>}
                                 </td>
-                                <td>{o.severity === "n/a" ? "no finding" : o.status}</td>
-                                <td>{o.severity}</td>
-                                <td className="se-num font-mono">
-                                  {o.penalty > 0 ? `−${o.penalty}` : "0"}
-                                </td>
+                                <td>{o.status === "NONE" ? "no finding" : o.status}</td>
+                                <td>{o.severity === "n/a" ? "—" : o.severity}</td>
                               </tr>
                             );
                           })}
                         </tbody>
                       </table>
                     </div>
+                    )}
                   </div>
                 </details>
               );
@@ -738,7 +713,7 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
               <span>100</span>
             </div>
             <div className="se-recon-row font-mono">
-              <span>Total penalties explained above</span>
+              <span>Total points_deducted reported by the backend</span>
               <span>−{totalPenalty}</span>
             </div>
             {wasClamped && (
@@ -758,12 +733,12 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
           </div>
           <p className="se-text-muted">
             {reconciles
-              ? "The explanation matches the backend score exactly. The backend remains the source of truth; this panel only explains its result and never recalculates it."
-              : "The explained total does not match the backend score" +
-                (unknownFindings.length > 0
-                  ? ", because this scan contains findings from rules this panel has no penalty mapping for (" +
-                    unknownFindings.map((f) => f.rule_id).join(", ") +
-                    "). The backend score shown elsewhere on this page is the authoritative one."
+              ? "The deductions reported by the backend add up to the backend score exactly. The backend remains the source of truth; this panel only displays its numbers and never calculates a score, grade or penalty."
+              : "The deductions reported by the backend do not add up to the score it reported" +
+                (missingPoints.length > 0
+                  ? ", because the backend did not report points_deducted for " +
+                    missingPoints.map((f) => f.rule_id).join(", ") +
+                    ". The backend score shown elsewhere on this page is the authoritative one."
                   : ". The backend score shown elsewhere on this page is the authoritative one.")}
           </p>
           {wasClamped && (

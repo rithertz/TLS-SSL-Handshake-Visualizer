@@ -63,6 +63,7 @@ def score_security(
             "title": rule_tls["title"],
             "explanation": "The server negotiated TLS 1.3, which is the most modern and secure TLS protocol version.",
             "evidence": tls_version,
+            "points_deducted": 0,
         })
     elif tls_version == "TLSv1.2":
         score -= 10
@@ -73,6 +74,7 @@ def score_security(
             "title": rule_tls["title"],
             "explanation": "The server negotiated TLS 1.2. It remains acceptable and widely compatible, but TLS 1.3 is preferred.",
             "evidence": tls_version,
+            "points_deducted": 10,
         })
         recommendations.append(build_recommendation("TLS_VERSION", "TLS_VERSION_WARN"))
     else:
@@ -84,6 +86,7 @@ def score_security(
             "title": rule_tls["title"],
             "explanation": "The negotiated TLS version is obsolete, insecure, or could not be determined.",
             "evidence": tls_version or "Unavailable",
+            "points_deducted": 30,
         })
         recommendations.append(build_recommendation("TLS_VERSION", "TLS_VERSION_FAIL"))
 
@@ -110,6 +113,7 @@ def score_security(
                     "title": rule_expiry["title"],
                     "explanation": "The server certificate is currently within its active validity period.",
                     "evidence": f"Valid from {valid_from_str} to {valid_until_str}",
+                    "points_deducted": 0,
                 })
             else:
                 score -= 30
@@ -120,6 +124,7 @@ def score_security(
                     "title": rule_expiry["title"],
                     "explanation": "The server certificate is expired or not yet valid.",
                     "evidence": f"Valid from {valid_from_str} to {valid_until_str}",
+                    "points_deducted": 30,
                 })
                 recommendations.append(build_recommendation("CERT_EXPIRY", "CERT_EXPIRY_FAIL"))
         except Exception:
@@ -131,6 +136,7 @@ def score_security(
                 "title": rule_expiry["title"],
                 "explanation": "Unable to parse valid_from / valid_until certificate timestamps.",
                 "evidence": f"from: {valid_from_str}, until: {valid_until_str}",
+                "points_deducted": 30,
             })
             recommendations.append(build_recommendation("CERT_EXPIRY", "CERT_EXPIRY_FAIL"))
     else:
@@ -142,6 +148,7 @@ def score_security(
             "title": rule_expiry["title"],
             "explanation": "Certificate validity timestamps are missing.",
             "evidence": "No timestamp data",
+            "points_deducted": 30,
         })
         recommendations.append(build_recommendation("CERT_EXPIRY", "CERT_EXPIRY_FAIL"))
 
@@ -160,6 +167,7 @@ def score_security(
             "title": rule_host["title"],
             "explanation": "The requested hostname matches the certificate identity.",
             "evidence": san_list if san_list else "SAN match confirmed",
+            "points_deducted": 0,
         })
     else:
         score -= 35
@@ -170,6 +178,7 @@ def score_security(
             "title": rule_host["title"],
             "explanation": "The certificate does not match the requested target domain hostname.",
             "evidence": f"SAN domains: {san_list}" if san_list else "No SAN match",
+            "points_deducted": 35,
         })
         recommendations.append(build_recommendation("HOSTNAME_MATCH", "HOSTNAME_MATCH_FAIL"))
 
@@ -189,6 +198,7 @@ def score_security(
                 "title": rule_prox["title"],
                 "explanation": f"Critical expiry window: The certificate will expire in {days_remaining} day(s).",
                 "evidence": f"{days_remaining} days remaining",
+                "points_deducted": 15,
             })
             recommendations.append(build_recommendation("EXPIRY_PROXIMITY", "EXPIRY_PROXIMITY_WARN_7"))
         elif days_remaining <= 30:
@@ -200,6 +210,7 @@ def score_security(
                 "title": rule_prox["title"],
                 "explanation": f"Upcoming expiry window: The certificate expires in {days_remaining} day(s).",
                 "evidence": f"{days_remaining} days remaining",
+                "points_deducted": 10,
             })
             recommendations.append(build_recommendation("EXPIRY_PROXIMITY", "EXPIRY_PROXIMITY_WARN_30"))
         else:
@@ -210,6 +221,7 @@ def score_security(
                 "title": rule_prox["title"],
                 "explanation": f"Certificate has ample validity remaining ({days_remaining} days).",
                 "evidence": f"{days_remaining} days remaining",
+                "points_deducted": 0,
             })
 
     # ---------------------------------------------------------
@@ -227,6 +239,7 @@ def score_security(
             "title": rule_self["title"],
             "explanation": "The certificate subject and issuer differ, so it does not appear to be self-signed.",
             "evidence": issuer_info if issuer_info else "Issuer metadata unavailable",
+            "points_deducted": 0,
         })
     elif self_signed is True:
         score -= 25
@@ -237,6 +250,7 @@ def score_security(
             "title": rule_self["title"],
             "explanation": "The certificate subject and issuer match, so it appears to be self-signed.",
             "evidence": issuer_info if issuer_info else "Self-signed certificate",
+            "points_deducted": 25,
         })
         recommendations.append(build_recommendation("SELF_SIGNED", "SELF_SIGNED_WARN"))
 
@@ -253,6 +267,7 @@ def score_security(
             "title": rule_ident["title"],
             "explanation": "Certificate Subject and Issuer metadata are correctly populated.",
             "evidence": f"Subject: {subject_info}, Issuer: {issuer_info}",
+            "points_deducted": 0,
         })
 
     # Final score clamping to [0, 100]
