@@ -54,6 +54,8 @@ export interface SecurityFinding {
   title: string;
   explanation: string;
   evidence: string | string[] | null;
+  /** Points this finding removed from the starting 100. Reported by the backend. */
+  points_deducted?: number;
 }
 
 export interface Recommendation {
