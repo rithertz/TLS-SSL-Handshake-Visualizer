@@ -328,25 +328,18 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
   const penalised = ledger.filter((r) => r.penalty > 0);
   const passedCount = ledger.filter((r) => r.finding && r.penalty === 0).length;
 
-  // Grade position
-  const band = GRADE_BANDS.find((b) => score >= b.min && score <= b.max);
-  const bandIndex = band ? GRADE_BANDS.findIndex((b) => b.grade === band.grade) : -1;
+  // Grade position. The grade itself always comes from the backend; the bands
+  // below are only used to describe where the backend's grade sits.
+  const gradeLetter = String(grade).toUpperCase();
+  const band = GRADE_BANDS.find((b) => b.grade === gradeLetter) ?? null;
+  const scoreInBand = band ? score >= band.min && score <= band.max : false;
+  const bandIndex = band ? GRADE_BANDS.indexOf(band) : -1;
   const nextUp = bandIndex > 0 ? GRADE_BANDS[bandIndex - 1] : null;
   const pointsToNext = nextUp ? nextUp.min - score : 0;
   const bufferBelow = band ? score - band.min : 0;
 
-  // What-if: fixing each penalised rule on its own.
-  const whatIf = penalised.map((r) => {
-    const potential = Math.min(100, score + r.penalty);
-    const g = GRADE_BANDS.find((b) => potential >= b.min && potential <= b.max);
-    return { row: r, potential, grade: g?.grade ?? grade };
-  });
-  const bestPossible = Math.min(100, score + totalPenalty);
-  const bestGrade =
-    GRADE_BANDS.find((b) => bestPossible >= b.min && bestPossible <= b.max)?.grade ??
-    grade;
-
-  const gradeLetter = String(grade).toUpperCase();
+  // What-if: points recovered by fixing each penalised rule. No grade is derived.
+  const whatIf = penalised.map((r) => ({ row: r, gain: r.penalty }));
 
   return (
     <div className="dashboard-card score-explain" data-testid="score-explanation">
@@ -376,8 +369,8 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
             away only when that property is weak.{" "}
             {penalised.length === 0 ? (
               <>
-                No rule deducted anything for this scan, so the score stays at{" "}
-                <strong>{score}/100</strong> and the grade is <strong>{gradeLetter}</strong>.
+                No rule deducted anything for this scan, which explains a score of{" "}
+                <strong>{explainedScore}/100</strong>.
               </>
             ) : (
               <>
@@ -386,8 +379,7 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                 <strong>{totalPenalty} points</strong> ({penalised
                   .map((r) => `${r.meta.id} −${r.penalty}`)
                   .join(", ")}
-                ), leaving <strong>{score}/100</strong>, which falls in the grade{" "}
-                <strong>{gradeLetter}</strong> band.
+                ), which explains a score of <strong>{explainedScore}/100</strong>.
               </>
             )}{" "}
             {passedCount > 0 && (
@@ -395,7 +387,9 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                 {passedCount} {passedCount === 1 ? "rule" : "rules"} passed with no
                 penalty.
               </>
-            )}
+            )}{" "}
+            The backend reported <strong>{score}/100</strong> (grade{" "}
+            <strong>{gradeLetter}</strong>).
           </p>
 
           <div className="se-equation font-mono" data-testid="se-equation">
@@ -409,8 +403,22 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
               </React.Fragment>
             ))}
             <span className="se-eq-op">=</span>
-            <span className="se-eq-term se-eq-result">{score}</span>
+            <span className={`se-eq-term se-eq-result ${reconciles ? "" : "se-eq-bad"}`}>
+              {explainedScore}
+            </span>
           </div>
+          {!reconciles && (
+            <p className="se-mismatch" role="alert" data-testid="se-mismatch">
+              <strong>Mismatch:</strong> the deductions explained by the findings give{" "}
+              {explainedScore}, but the backend reported {score}.{" "}
+              {unknownFindings.length > 0
+                ? `This scan includes findings this panel has no penalty mapping for (${unknownFindings
+                    .map((f) => f.rule_id)
+                    .join(", ")}). `
+                : "The scoring rules may have changed since this panel was written. "}
+              The backend score and grade are authoritative.
+            </p>
+          )}
         </section>
 
         {/* 2. Score bar */}
@@ -421,13 +429,13 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
           <div
             className="se-bar"
             role="img"
-            aria-label={`Of 100 points, ${score} were kept and ${totalPenalty} were deducted`}
+            aria-label={`Of 100 points, ${explainedScore} were kept and ${totalPenalty} were deducted`}
           >
             <div
               className="se-bar-kept"
-              style={{ width: `${Math.max(0, Math.min(100, score))}%` }}
+              style={{ width: `${explainedScore}%` }}
             >
-              {score >= 8 && <span>{score} kept</span>}
+              {explainedScore >= 8 && <span>{explainedScore} kept</span>}
             </div>
             {penalised.map((r) => (
               <div
@@ -601,28 +609,54 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
             4. From score to grade
           </h3>
           <p className="se-text">
-            The letter grade is derived <em>after</em> all penalties, from fixed score bands.
-            A score of <strong>{score}</strong> lies in the{" "}
-            <strong>
-              {band ? `${band.min}–${band.max}` : "unknown"} → {gradeLetter}
-            </strong>{" "}
-            band.
-            {nextUp ? (
+            The letter grade is returned by the backend, which derives it <em>after</em> all
+            penalties from fixed score bands. This panel does not calculate a grade of its
+            own. The backend reported <strong>{score}</strong> and grade{" "}
+            <strong>{gradeLetter}</strong>
+            {band && scoreInBand && (
               <>
-                {" "}
-                It needs <strong>{pointsToNext} more {pointsToNext === 1 ? "point" : "points"}</strong>{" "}
-                to reach grade {nextUp.grade}.
+                , and grade {gradeLetter} covers {band.min}–{band.max} in the scoring
+                specification.
+                {nextUp ? (
+                  <>
+                    {" "}
+                    It needs{" "}
+                    <strong>
+                      {pointsToNext} more {pointsToNext === 1 ? "point" : "points"}
+                    </strong>{" "}
+                    to reach grade {nextUp.grade}.
+                  </>
+                ) : (
+                  <> This is the highest grade available.</>
+                )}
+                {band.min > 0 && (
+                  <>
+                    {" "}
+                    It would move to a lower grade after losing{" "}
+                    <strong>
+                      {bufferBelow + 1} more {bufferBelow + 1 === 1 ? "point" : "points"}
+                    </strong>
+                    .
+                  </>
+                )}
               </>
-            ) : (
-              <> This is the highest grade available.</>
             )}
-            {band && band.min > 0 && (
-              <>
+            {band && !scoreInBand && (
+              <strong className="se-flag" data-testid="se-grade-mismatch">
                 {" "}
-                It would drop to the next grade down after losing{" "}
-                <strong>{bufferBelow + 1}</strong> more {bufferBelow + 1 === 1 ? "point" : "points"}.
-              </>
+                — but that score is outside the {band.min}–{band.max} band documented for
+                grade {gradeLetter}. The backend grade is shown as-is; the specification
+                or this panel may be out of date.
+              </strong>
             )}
+            {!band && (
+              <strong className="se-flag" data-testid="se-grade-mismatch">
+                {" "}
+                — which is not a grade this panel recognises. The backend grade is shown
+                as-is.
+              </strong>
+            )}
+            .
           </p>
 
           <div className="se-grade-ladder" role="list">
@@ -659,17 +693,16 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
           ) : (
             <>
               <p className="se-text-muted">
-                Each line shows the score if only that one problem were fixed. Fixing
-                everything would give <strong>{bestPossible}/100</strong> (grade{" "}
-                <strong>{bestGrade}</strong>).
+                Each line shows how many points the rule took away, which is what fixing that
+                one problem would give back. Fixing everything would recover{" "}
+                <strong>{totalPenalty} points</strong>. These are illustrative only: a new
+                scan is the only way to get a real score and grade.
               </p>
               <table className="se-table se-whatif" data-testid="se-whatif">
                 <thead>
                   <tr>
                     <th>Fix this</th>
-                    <th className="se-num">Gain</th>
-                    <th className="se-num">New score</th>
-                    <th className="se-num">New grade</th>
+                    <th className="se-num">Points recovered</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -679,9 +712,7 @@ export const ScoreExplanation: React.FC<ScoreExplanationProps> = ({
                         <span className="font-mono">{w.row.meta.id}</span> —{" "}
                         {w.row.meta.name}
                       </td>
-                      <td className="se-num font-mono">+{w.row.penalty}</td>
-                      <td className="se-num font-mono">{w.potential}</td>
-                      <td className="se-num font-mono">{w.grade}</td>
+                      <td className="se-num font-mono">+{w.gain}</td>
                     </tr>
                   ))}
                 </tbody>

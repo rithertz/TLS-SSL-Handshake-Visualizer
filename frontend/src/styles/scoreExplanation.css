@@ -492,3 +492,25 @@
     justify-content: space-between;
   }
 }
+
+/* Mismatch flags */
+.se-eq-bad {
+  background: var(--bg-warn);
+  color: var(--color-warn);
+}
+
+.score-explain .se-mismatch {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-warn);
+  border-left-width: 4px;
+  border-radius: 8px;
+  background: var(--bg-warn);
+  color: var(--text-main);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.score-explain .se-mismatch strong,
+.score-explain .se-text strong.se-flag {
+  color: var(--color-warn);
+}

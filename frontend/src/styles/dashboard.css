@@ -365,6 +365,7 @@ body {
 .grade-b { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 2px solid #0284c7; }
 .grade-c { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 2px solid #f59e0b; }
 .grade-d { background: rgba(249, 115, 22, 0.2); color: #fb923c; border: 2px solid #ea580c; }
+.grade-e { background: rgba(244, 63, 94, 0.2); color: #fb7185; border: 2px solid #e11d48; }
 .grade-f { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 2px solid #ef4444; }
 
 .score-info {

@@ -26,6 +26,7 @@ export const SecurityScore: React.FC<SecurityScoreProps> = ({ security }) => {
       case "D":
         return "grade-d";
       case "E":
+        return "grade-e";
       case "F":
       default:
         return "grade-f";
